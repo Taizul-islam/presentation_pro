@@ -1,0 +1,201 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.7'
+          channel: 'stable'
+          cache: true
+
+      - name: Enable Windows support
+        run: flutter config --enable-windows-desktop
+
+      - name: Install LibreOffice
+        shell: powershell
+        run: |
+          choco install libreoffice-fresh -y --no-progress
+
+      - name: Download Poppler
+        shell: powershell
+        run: |
+          Write-Host "Downloading Poppler..."
+          $popplerUrl = "https://github.com/oschwartz10612/poppler-windows/releases/download/v24.08.0-0/Release-24.08.0-0.zip"
+          
+          try {
+            Invoke-WebRequest -Uri $popplerUrl -OutFile "poppler.zip" -ErrorAction Stop
+            Write-Host "✅ Poppler downloaded successfully"
+          } catch {
+            Write-Host "Failed with first URL, trying alternative..."
+            $altUrls = @(
+              "https://github.com/oschwartz10612/poppler-windows/releases/download/v24.07.0-0/Release-24.07.0-0.zip",
+              "https://github.com/oschwartz10612/poppler-windows/releases/download/v24.02.0-0/Release-24.02.0-0.zip",
+              "https://github.com/oschwartz10612/poppler-windows/releases/download/v23.11.0-0/Release-23.11.0-0.zip"
+            )
+          
+            $downloaded = $false
+            foreach ($url in $altUrls) {
+              try {
+                Write-Host "Trying: $url"
+                Invoke-WebRequest -Uri $url -OutFile "poppler.zip" -ErrorAction Stop
+                Write-Host "✅ Poppler downloaded successfully"
+                $downloaded = $true
+                break
+              } catch {
+                Write-Host "Failed: $url"
+              }
+            }
+          
+            if (-not $downloaded) {
+              Write-Host "⚠️ All download attempts failed"
+              Write-Host "Trying to install via Chocolatey..."
+              choco install poppler -y --no-progress
+            }
+          }
+
+      - name: Extract Poppler
+        shell: powershell
+        run: |
+          Write-Host "Extracting Poppler..."
+          
+          if (Test-Path "poppler.zip") {
+            Expand-Archive -Path "poppler.zip" -DestinationPath "poppler_extracted" -Force
+            $popplerDir = Get-ChildItem "poppler_extracted" -Directory | Select-Object -First 1
+          
+            if ($popplerDir) {
+              Write-Host "Found poppler directory: $($popplerDir.FullName)"
+              $binDir = Get-ChildItem $popplerDir.FullName -Recurse -Directory -Filter "bin" | Select-Object -First 1
+          
+              if ($binDir) {
+                Write-Host "Found bin directory: $($binDir.FullName)"
+                $destDir = "build\windows\x64\runner\Release\tools\poppler"
+                New-Item -ItemType Directory -Path $destDir -Force
+                Copy-Item -Path "$($binDir.FullName)\*" -Destination $destDir -Recurse -Force
+                Write-Host "✅ Poppler copied to $destDir"
+              }
+            }
+          }
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Windows EXE
+        run: flutter build windows --release
+
+      # ============ CRITICAL: Copy pdfium.dll ============
+      - name: Copy pdfium.dll to main directory
+        shell: powershell
+        run: |
+          Write-Host "=== CHECKING pdfium.dll ==="
+          $buildDir = "build\windows\x64\runner\Release"
+          
+          if (Test-Path "$buildDir\pdfium.dll") {
+            Write-Host "✅ pdfium.dll already in main directory"
+          } else {
+            Write-Host "⚠️ pdfium.dll NOT in main directory. Searching..."
+            $pdfium = Get-ChildItem $buildDir -Recurse -Filter "pdfium.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          
+            if ($pdfium) {
+              Write-Host "Found at: $($pdfium.FullName)"
+              Copy-Item $pdfium.FullName -Destination "$buildDir\" -Force
+              Write-Host "✅ Copied to main directory"
+            }
+          }
+          
+          Write-Host "=== DLLs in main directory ==="
+          Get-ChildItem $buildDir -Filter "*.dll" | ForEach-Object { Write-Host "  $($_.Name)" }
+      # ============ END CRITICAL ============
+
+      - name: Create tools directory
+        shell: powershell
+        run: |
+          $buildDir = "build\windows\x64\runner\Release"
+          New-Item -ItemType Directory -Path "$buildDir\tools\libreoffice" -Force
+          New-Item -ItemType Directory -Path "$buildDir\tools\poppler" -Force
+          Write-Host "Created tools directories"
+
+      - name: Copy LibreOffice
+        shell: cmd
+        run: |
+          if exist "C:\Program Files\LibreOffice" (
+            echo Copying LibreOffice...
+            robocopy "C:\Program Files\LibreOffice" "build\windows\x64\runner\Release\tools\libreoffice" /E /NFL /NDL /NJH /NJS /NC /NS /NP
+            if %ERRORLEVEL% LEQ 3 (
+              echo LibreOffice copied successfully
+              exit /b 0
+            )
+          ) else (
+            echo LibreOffice not found
+            exit /b 1
+          )
+
+      - name: Verify ALL files
+        shell: powershell
+        run: |
+          Write-Host "=== FINAL VERIFICATION ==="
+          $buildDir = "build\windows\x64\runner\Release"
+          
+          # EXE
+          if (Test-Path "$buildDir\mobile.exe") { Write-Host "✅ mobile.exe" } else { Write-Host "❌ mobile.exe MISSING" }
+          
+          # pdfium.dll
+          if (Test-Path "$buildDir\pdfium.dll") { Write-Host "✅ pdfium.dll in main dir" } else { Write-Host "❌ pdfium.dll MISSING" }
+          
+          # Tools
+          $soffice = Get-ChildItem "$buildDir\tools" -Recurse -Filter "soffice.exe" | Select-Object -First 1
+          $pdftoppm = Get-ChildItem "$buildDir\tools" -Recurse -Filter "pdftoppm.exe" | Select-Object -First 1
+          
+          if ($soffice) { Write-Host "✅ soffice.exe" } else { Write-Host "❌ soffice.exe" }
+          if ($pdftoppm) { Write-Host "✅ pdftoppm.exe" } else { Write-Host "❌ pdftoppm.exe" }
+
+      - name: Create ZIP (Portable Version)
+        shell: powershell
+        run: |
+          $zipName = "PresentationPro_Portable_v${{ github.ref_name }}.zip"
+          if ("${{ github.ref_type }}" -ne "tag") { 
+            $zipName = "PresentationPro_Portable_Manual.zip" 
+          }
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath $zipName
+          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: presentation-pro-portable
+          path: ${{ env.ZIP_NAME }}
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          body: |
+            **Presentation Pro - Portable Version**
+            
+            Just extract the ZIP and run `mobile.exe` - no installation needed!
+            
+            **Features:**
+            - ✅ PPTX support with perfect rendering
+            - ✅ PDF viewing
+            - ✅ Drawing and annotation tools
+            - ✅ All tools bundled (LibreOffice + Poppler)
+            - ✅ No additional installation required
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
