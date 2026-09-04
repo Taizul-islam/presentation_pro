@@ -4,6 +4,7 @@ enum DrawingTool {
   pen,
   highlighter,
   eraser,
+  selector,
 }
 
 enum PageContentType {
@@ -25,6 +26,32 @@ class DrawingStroke {
     required this.width,
     required this.tool,
   });
+
+  Rect get boundingBox {
+    if (points.isEmpty) return Rect.zero;
+    double left = points[0].dx;
+    double top = points[0].dy;
+    double right = points[0].dx;
+    double bottom = points[0].dy;
+
+    for (final p in points) {
+      if (p.dx < left) left = p.dx;
+      if (p.dx > right) right = p.dx;
+      if (p.dy < top) top = p.dy;
+      if (p.dy > bottom) bottom = p.dy;
+    }
+    // Add stroke width to the bounding box
+    return Rect.fromLTRB(left, top, right, bottom).inflate(width / 2);
+  }
+
+  DrawingStroke translate(Offset delta) {
+    return DrawingStroke(
+      points: points.map((p) => p + delta).toList(),
+      color: color,
+      width: width,
+      tool: tool,
+    );
+  }
 }
 
 class PresentationPage {

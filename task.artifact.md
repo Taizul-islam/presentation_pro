@@ -1,18 +1,17 @@
-# Task List - Samsung Note 3 Style UI for Annotate Mode
+# Task List - Selection and Move Functionality
 
-- [x] Create `samsung_menu_item.dart` widget
-- [x] Refactor `presentation_screen.dart` layout
-    - [x] Implement collapsible sidebar logic
-    - [x] Hide `AppBar` in annotate mode
-    - [x] Build floating bottom-left utility menu
-    - [x] Build floating bottom toolbar (center)
-    - [x] Build vertical Samsung-style menu
-    - [x] Refine compact slide navigation (bottom-right)
-- [x] Implement "Back" action to exit annotate mode
-- [x] Fix build errors and missing methods
-- [x] Verify UI interactions and animations
-- [x] Implement Print functionality
-- [x] Resolve macOS Print Dialog hang (Deadlock Fix)
-- [x] Redesign Loading Overlay to be more professional
-- [x] Implement Multi-Mode System (Teaching, Preparation, Desktop)
-- [x] Final cleanup and verification
+- [x] Update `DrawingStroke` model with selection logic
+    - [x] Add `selector` to `DrawingTool` enum
+    - [x] Implement `boundingBox` for `DrawingStroke`
+    - [x] Implement `translate` method for `DrawingStroke`
+- [x] Implement selection logic in `DrawingCanvas`
+    - [x] Add selection state (rectangle, indices)
+    - [x] Update gesture handling for selection and dragging
+    - [x] Notify parent when strokes are moved
+- [x] Update `DrawingPainter` to render selection UI
+    - [x] Draw dashed selection rectangle
+    - [x] Draw corner handles (Note 3 style)
+- [x] Integrate Selector tool in `PresentationScreen`
+    - [x] Add selector icon to central toolbar
+    - [x] Handle move updates and undo history
+- [x] Verify functionality and cleanup

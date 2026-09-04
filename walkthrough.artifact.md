@@ -1,29 +1,28 @@
-# Walkthrough - Immersive Teaching Mode & Multi-Mode System
+# Walkthrough - Selection and Drag Functionality
 
-I have fixed the "Teaching Mode" to be truly immersive and full-screen, matching the professional Samsung Note 3 experience.
+I have implemented a professional selection tool that allows you to select areas of your drawing and move them to new positions, matching the Note 3 style.
 
 ## Key Changes
 
-### 1. Immersive Teaching Mode
-- **Edge-to-Edge Canvas**: In **Teaching Mode**, all borders, padding, and drop shadows are removed. The slide background and document content now fill your entire screen.
-- **Hidden Sidebar**: The slide thumbnail sidebar is completely hidden, and the toggle button is removed to prevent accidental taps and maximize the drawing area.
-- **Floating Controls**: All bottom menus (Utility, Drawing Tools, and Navigation) continue to float elegantly over the full-screen canvas.
+### 1. New Selection Tool
+A new **Selector** (arrow) icon has been added to your central floating toolbar.
+- **Select Mode**: Drag a box around any part of your drawing.
+- **Visual Feedback**: A dashed blue rectangle with corner and side handles will appear around selected strokes, giving it an authentic "Samsung Note" feel.
 
-### 2. Multi-Mode Workflow Refined
-- **Preparation Mode**: Retains the bordered slide view and collapsible sidebar, ideal for setup.
-- **Desktop Mode**: Correctly triggers a window minimization on desktop platforms, allowing you to access other system tools quickly.
-- **Smooth Transitions**: Switching between modes automatically adjusts the sidebar visibility and canvas layout.
+### 2. Move and Reposition
+- **Drag to Move**: Once a selection is made, simply click and drag from *inside* the dashed box to reposition all contained strokes simultaneously.
+- **Real-time Interaction**: The drawings follow your mouse movements smoothly as you drag.
 
-### 3. Smart Document Scaling
-- **Dynamic Fitting**: PDF pages and images now center themselves and scale to the best possible "Fit" while maintaining their original proportions in full-screen mode.
-- **Drawing Consistency**: Your annotations remain perfectly aligned whether you are in the padded Preparation view or the full-screen Teaching view.
+### 3. Integrated History
+- **Undo/Redo Support**: Moving strokes is fully tracked in the history system. If you move something to the wrong place, you can simply tap the Undo button to snap it back to its original position.
 
 ## Technical Implementation
-- **Mode-Aware UI Builders**: Updated `_buildSlideItem` and `_buildPageContent` in [presentation_screen.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/presentation_screen.dart) to conditionally remove layout constraints based on the active `AppMode`.
-- **Constraint Removal**: Replaced `AspectRatio` and `Padding` with a simple `Positioned.fill` logic during Teaching Mode to reclaim every pixel of the screen.
+- **Bounding Box Calculation**: Added logic to `DrawingStroke` to calculate the exact spatial boundaries of each sketch.
+- **Dynamic Translation**: Implemented a `translate` method to shift multiple strokes by a movement delta without losing their relative spacing.
+- **Sophisticated Canvas Logic**: Updated the `DrawingCanvas` to handle dual-mode gestures (creating a selection vs. dragging a selection).
 
 > [!TIP]
-> Switch to **Teaching Mode** when presenting to students to give them a clear, distraction-free view of your content!
+> To clear a selection, simply tap anywhere else on the canvas while the Selector tool is active.
 
 > [!NOTE]
-> All your drawings are preserved and scaled automatically when you toggle between modes.
+> This tool works on all slide types, including PDF backgrounds and imported images!

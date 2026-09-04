@@ -13,6 +13,7 @@ class DrawingCanvas extends StatefulWidget {
   final Function(Offset) onStrokeUpdate;
   final Function() onStrokeEnd;
   final Function(Offset?) onHoverUpdate;
+  final Function(List<int>, Offset)? onStrokesMoved;
 
   const DrawingCanvas({
     Key? key,
@@ -27,6 +28,7 @@ class DrawingCanvas extends StatefulWidget {
     required this.onStrokeUpdate,
     required this.onStrokeEnd,
     required this.onHoverUpdate,
+    this.onStrokesMoved,
   }) : super(key: key);
 
   @override
@@ -35,40 +37,67 @@ class DrawingCanvas extends StatefulWidget {
 
 class _DrawingCanvasState extends State<DrawingCanvas> {
   bool _isDrawing = false;
+  Rect? _selectionRect;
+  List<int> _selectedIndices = [];
+  Offset? _dragStart;
+  Offset? _currentDragOffset;
+  bool _isMoving = false;
+
+  @override
+  void didUpdateWidget(DrawingCanvas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedTool == DrawingTool.selector &&
+        widget.selectedTool != DrawingTool.selector) {
+      _clearSelection();
+    }
+    if (widget.strokes.isEmpty && oldWidget.strokes.isNotEmpty) {
+      _clearSelection();
+    }
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectionRect = null;
+      _selectedIndices = [];
+      _isMoving = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
       onHover: (event) {
-        if (!_isDrawing) {
+        if (!_isDrawing && !_isMoving) {
           widget.onHoverUpdate(event.localPosition);
         }
       },
       onExit: (_) => widget.onHoverUpdate(null),
       child: Listener(
         onPointerDown: (PointerDownEvent event) {
-          _isDrawing = true;
-          widget.onHoverUpdate(null); // Hide preview when drawing
-          widget.onStrokeStart(event.localPosition);
+          if (widget.selectedTool == DrawingTool.selector) {
+            _handleSelectionStart(event.localPosition);
+          } else {
+            _isDrawing = true;
+            widget.onHoverUpdate(null);
+            widget.onStrokeStart(event.localPosition);
+          }
         },
         onPointerMove: (PointerMoveEvent event) {
-          if (_isDrawing) {
+          if (widget.selectedTool == DrawingTool.selector) {
+            _handleSelectionUpdate(event.localPosition);
+          } else if (_isDrawing) {
             widget.onStrokeUpdate(event.localPosition);
           } else {
             widget.onHoverUpdate(event.localPosition);
           }
         },
         onPointerUp: (PointerUpEvent event) {
-          if (_isDrawing) {
+          if (widget.selectedTool == DrawingTool.selector) {
+            _handleSelectionEnd();
+          } else if (_isDrawing) {
             _isDrawing = false;
             widget.onStrokeEnd();
             widget.onHoverUpdate(event.localPosition);
-          }
-        },
-        onPointerCancel: (PointerCancelEvent event) {
-          if (_isDrawing) {
-            _isDrawing = false;
-            widget.onStrokeEnd();
           }
         },
         behavior: HitTestBehavior.opaque,
@@ -82,10 +111,73 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             eraserWidth: widget.eraserWidth,
             tool: widget.selectedTool,
             hoverPosition: widget.hoverPosition,
+            selectionRect: _selectionRect,
+            selectedIndices: _selectedIndices,
+            dragOffset: _currentDragOffset,
           ),
         ),
       ),
     );
+  }
+
+  void _handleSelectionStart(Offset position) {
+    if (_selectionRect != null && _selectionRect!.contains(position)) {
+      _isMoving = true;
+      _dragStart = position;
+      _currentDragOffset = Offset.zero;
+    } else {
+      setState(() {
+        _selectionRect = Rect.fromPoints(position, position);
+        _selectedIndices = [];
+        _isMoving = false;
+      });
+    }
+  }
+
+  void _handleSelectionUpdate(Offset position) {
+    if (_isMoving && _dragStart != null) {
+      setState(() {
+        _currentDragOffset = position - _dragStart!;
+      });
+    } else if (_selectionRect != null) {
+      setState(() {
+        _selectionRect = Rect.fromPoints(_selectionRect!.topLeft, position);
+        _updateSelectedIndices();
+      });
+    }
+  }
+
+  void _handleSelectionEnd() {
+    if (_isMoving) {
+      if (_currentDragOffset != null && _currentDragOffset != Offset.zero) {
+        widget.onStrokesMoved?.call(_selectedIndices, _currentDragOffset!);
+      }
+      setState(() {
+        if (_selectionRect != null && _currentDragOffset != null) {
+          _selectionRect = _selectionRect!.shift(_currentDragOffset!);
+        }
+        _currentDragOffset = null;
+        _isMoving = false;
+      });
+    } else if (_selectionRect != null) {
+      if (_selectionRect!.width < 5 && _selectionRect!.height < 5) {
+        setState(() {
+          _selectionRect = null;
+          _selectedIndices = [];
+        });
+      }
+    }
+  }
+
+  void _updateSelectedIndices() {
+    if (_selectionRect == null) return;
+    List<int> indices = [];
+    for (int i = 0; i < widget.strokes.length; i++) {
+      if (_selectionRect!.overlaps(widget.strokes[i].boundingBox)) {
+        indices.add(i);
+      }
+    }
+    _selectedIndices = indices;
   }
 }
 
@@ -97,6 +189,9 @@ class DrawingPainter extends CustomPainter {
   final double eraserWidth;
   final DrawingTool tool;
   final Offset? hoverPosition;
+  final Rect? selectionRect;
+  final List<int> selectedIndices;
+  final Offset? dragOffset;
 
   DrawingPainter({
     required this.strokes,
@@ -106,38 +201,105 @@ class DrawingPainter extends CustomPainter {
     required this.eraserWidth,
     required this.tool,
     required this.hoverPosition,
+    this.selectionRect,
+    this.selectedIndices = const [],
+    this.dragOffset,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // We use saveLayer so that BlendMode.clear only affects the ink layer, 
-    // revealing the document (PDF/PPTX) underneath.
     canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
 
-    // Draw completed strokes
-    for (var stroke in strokes) {
-      _drawStroke(canvas, stroke);
+    for (int i = 0; i < strokes.length; i++) {
+      var stroke = strokes[i];
+      if (selectedIndices.contains(i) && dragOffset != null) {
+        _drawStroke(canvas, stroke.translate(dragOffset!));
+      } else {
+        _drawStroke(canvas, stroke);
+      }
     }
 
-    // Draw current stroke
     if (currentStroke != null && currentStroke!.points.length > 1) {
       _drawStroke(canvas, currentStroke!);
     }
 
     canvas.restore();
 
-    // Draw Duster/Eraser preview outline
+    // Draw Selection UI
+    if (selectionRect != null) {
+      final rect = dragOffset != null ? selectionRect!.shift(dragOffset!) : selectionRect!;
+      _drawSelectionBox(canvas, rect);
+    }
+
+    // Draw Eraser Preview
     if (tool == DrawingTool.eraser && hoverPosition != null) {
       final previewPaint = Paint()
         ..color = Colors.indigo.withOpacity(0.4)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
-      
       canvas.drawCircle(hoverPosition!, eraserWidth / 2, previewPaint);
-      
-      // Draw a small center dot
       canvas.drawCircle(hoverPosition!, 1.5, previewPaint..style = PaintingStyle.fill);
     }
+  }
+
+  void _drawSelectionBox(Canvas canvas, Rect rect) {
+    final paint = Paint()
+      ..color = Colors.blue.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    // Draw dashed rectangle
+    final dashWidth = 5.0;
+    final dashSpace = 5.0;
+    
+    _drawDashedRect(canvas, rect, paint, dashWidth, dashSpace);
+
+    // Draw background
+    canvas.drawRect(rect, Paint()..color = Colors.blue.withOpacity(0.05)..style = PaintingStyle.fill);
+
+    // Draw handles (white circles)
+    final handlePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    final handleBorderPaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final handles = [
+      rect.topLeft, rect.topCenter, rect.topRight,
+      rect.centerLeft, rect.centerRight,
+      rect.bottomLeft, rect.bottomCenter, rect.bottomRight,
+    ];
+
+    for (var h in handles) {
+      canvas.drawCircle(h, 5, handlePaint);
+      canvas.drawCircle(h, 5, handleBorderPaint);
+    }
+  }
+
+  void _drawDashedRect(Canvas canvas, Rect rect, Paint paint, double dashWidth, double dashSpace) {
+    void drawDashedLine(Offset p1, Offset p2) {
+      var distance = (p2 - p1).distance;
+      var dx = (p2.dx - p1.dx) / distance;
+      var dy = (p2.dy - p1.dy) / distance;
+      var currentDist = 0.0;
+      while (currentDist < distance) {
+        var nextDist = currentDist + dashWidth;
+        if (nextDist > distance) nextDist = distance;
+        canvas.drawLine(
+          p1 + Offset(dx * currentDist, dy * currentDist),
+          p1 + Offset(dx * nextDist, dy * nextDist),
+          paint,
+        );
+        currentDist += dashWidth + dashSpace;
+      }
+    }
+
+    drawDashedLine(rect.topLeft, rect.topRight);
+    drawDashedLine(rect.topRight, rect.bottomRight);
+    drawDashedLine(rect.bottomRight, rect.bottomLeft);
+    drawDashedLine(rect.bottomLeft, rect.topLeft);
   }
 
   void _drawStroke(Canvas canvas, DrawingStroke stroke) {

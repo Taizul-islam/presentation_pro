@@ -562,6 +562,7 @@ class _PresentationScreenState extends State<PresentationScreen>
           onStrokeUpdate: _updateStroke,
           onStrokeEnd: _endStroke,
           onHoverUpdate: (pos) => setState(() => _hoverPosition = pos),
+          onStrokesMoved: _handleStrokesMoved,
         ),
       ],
     );
@@ -678,7 +679,7 @@ class _PresentationScreenState extends State<PresentationScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildToolbarIcon(Icons.near_me, null, false),
+            _buildToolbarIcon(Icons.near_me, DrawingTool.selector, _selectedTool == DrawingTool.selector),
             _buildToolbarIcon(Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
             IconButton(
               icon: const Icon(Icons.format_color_fill, size: 22),
@@ -708,6 +709,22 @@ class _PresentationScreenState extends State<PresentationScreen>
         ),
       ),
     );
+  }
+
+  void _handleStrokesMoved(List<int> indices, Offset delta) {
+    if (indices.isEmpty || delta == Offset.zero) return;
+
+    setState(() {
+      _undoHistory.add(List<DrawingStroke>.from(_pages[_currentPageIndex].strokes));
+      _redoHistory.clear();
+
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      for (final index in indices) {
+        updatedStrokes[index] = updatedStrokes[index].translate(delta);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+    });
   }
 
   void _showDrawingColorPicker() {

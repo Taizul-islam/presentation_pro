@@ -1,45 +1,46 @@
-# Implementation Plan - Multi-Mode System (Teaching, Preparation, Desktop)
+# Implementation Plan - Selection and Move Functionality
 
-I will implement a mode-switching system that allows users to toggle between **Preparation**, **Teaching**, and **Desktop** modes, matching the Samsung Note 3 workflow.
+I will implement a selection tool that allows users to select an area of the canvas and move the contained drawing strokes to a new position, matching the Samsung Note 3 style.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Mode Definitions**:
-> 1.  **Preparation Mode (Default)**: Full interface with collapsible sidebar (current behavior).
-> 2.  **Teaching Mode**: Immersive full-screen view. The sidebar is completely hidden, and the focus is entirely on the canvas and bottom toolbars.
-> 3.  **Desktop Mode**: Minimizes the main window to allow interaction with the desktop while keeping a floating tool overlay (simulated as window minimization on desktop platforms).
+> **Selection Interaction**: The tool will work by dragging to create a rectangular selection box. Any stroke that is partially or fully inside this box will be selected. Once selected, dragging from inside the box will move all contained strokes together.
 
 ## Proposed Changes
 
-### State Management
-#### [MODIFY] [presentation_screen.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/presentation_screen.dart)
-- **New Enum**: `AppMode { preparation, teaching, desktop }`.
-- **New State Variable**: `AppMode _currentMode = AppMode.preparation`.
-- **Logic**:
-    - `Teaching Mode`: Set `_isSidebarCollapsed = true` and hide the toggle chevron.
-    - `Desktop Mode`: Implement window minimization logic.
+### 1. Model Updates
+#### [MODIFY] [drawing_stroke.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/models/drawing_stroke.dart)
+- Add `selector` to the `DrawingTool` enum.
+- Update `DrawingStroke` to potentially include an offset or methods to apply a transformation.
+- Add a helper method to calculate the bounding box of a `DrawingStroke`.
 
-### UI Components
-#### [MODIFY] [presentation_screen.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/presentation_screen.dart)
-- **Vertical Menu Update**:
-    - Add a "Mode" sub-menu item.
-    - Implement a slide-out or secondary pop-up to select between the three modes.
-- **Layout Adjustments**:
-    - Condition the visibility of the sidebar toggle button based on `_currentMode`.
-    - Adjust `_buildSlideItem` padding and aspect ratio behavior for Teaching mode to ensure a "borderless" feel.
+### 2. Canvas Logic Enhancements
+#### [MODIFY] [drawing_canvas.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/widgets/drawing_canvas.dart)
+- **New State Variables**:
+    - `Rect? selectionRect`: The current selection area.
+    - `List<int> selectedStrokeIndices`: Indices of strokes currently selected.
+    - `Offset? dragStartOffset`: To calculate movement delta.
+- **Gesture Handling**:
+    - If `selectedTool == DrawingTool.selector`:
+        - `onPointerDown`: Determine if tapping inside an existing selection (to move) or outside (to start a new selection).
+        - `onPointerMove`: Either update the selection box dimensions OR update the position of selected strokes.
+        - `onPointerUp`: Finalize selection or confirm move.
+- **Visual Feedback**:
+    - Draw a dashed blue/indigo border for the selection rectangle.
+    - Add corner "handles" to the selection box as seen in the reference screenshot.
 
-### Desktop Integration
-#### [MODIFY] [pubspec.yaml](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/pubspec.yaml)
-- Add `window_manager` or `screen_retriever` if needed for window state control (I will check existing dependencies first).
+### 3. Screen Integration
+#### [MODIFY] [presentation_screen.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/presentation_screen.dart)
+- Add the **Selector** tool to the floating toolbar.
+- Ensure the state is correctly passed down to the `DrawingCanvas`.
+- Add an action to delete selected strokes (optional but helpful).
 
 ## Verification Plan
 
-### Automated Tests
-- Verify that switching to `teaching` mode correctly collapses the sidebar and hides the toggle.
-- Verify that state (drawings) is preserved when switching between modes.
-
 ### Manual Verification
-- **Preparation -> Teaching**: Sidebar should disappear smoothly, and the canvas should expand.
-- **Teaching -> Preparation**: Sidebar toggle should reappear.
-- **Mode Switcher**: Ensure the vertical menu sub-options are clearly visible and tappable.
+1.  **Activate Selector**: Select the arrow tool from the bottom toolbar.
+2.  **Create Selection**: Drag a box around a set of strokes. A dashed box should appear.
+3.  **Move Strokes**: Click inside the box and drag. The strokes should move in real-time.
+4.  **Deselect**: Tap outside the box to clear the selection.
+5.  **Undo/Redo**: Verify that moving strokes can be undone and redone.
