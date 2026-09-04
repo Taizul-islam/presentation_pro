@@ -38,6 +38,7 @@ class PresentationPage {
   final int? pdfPageIndex;
   final dynamic extraData;
   final Color? backgroundColor;
+  final double? aspectRatio;
 
   PresentationPage({
     required this.pageNumber,
@@ -50,6 +51,7 @@ class PresentationPage {
     this.pdfPageIndex,
     this.extraData,
     this.backgroundColor = Colors.white,
+    this.aspectRatio,
   });
 
   PresentationPage copyWith({
@@ -59,6 +61,7 @@ class PresentationPage {
     int? pdfPageIndex,
     dynamic extraData,
     Color? backgroundColor,
+    double? aspectRatio,
   }) {
     return PresentationPage(
       pageNumber: pageNumber,
@@ -71,6 +74,7 @@ class PresentationPage {
       pdfPageIndex: pdfPageIndex ?? this.pdfPageIndex,
       extraData: extraData ?? this.extraData,
       backgroundColor: backgroundColor ?? this.backgroundColor,
+      aspectRatio: aspectRatio ?? this.aspectRatio,
     );
   }
 }

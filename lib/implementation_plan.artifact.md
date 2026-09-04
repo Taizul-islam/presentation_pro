@@ -1,32 +1,45 @@
-# Add Loading Indicators for Document and Preview Rendering
+# Implementation Plan - Multi-Mode System (Teaching, Preparation, Desktop)
 
-Improve the user experience by providing visual feedback while documents and thumbnails are being rendered or loaded.
+I will implement a mode-switching system that allows users to toggle between **Preparation**, **Teaching**, and **Desktop** modes, matching the Samsung Note 3 workflow.
 
 ## User Review Required
 
-> [!NOTE]
-> **Thumbnail Indicators**: A small, centered `CircularProgressIndicator` will be shown in the sidebar for each slide while its preview image (Image, PDF, or PPTX) is still being generated or decoded.
-
-> [!TIP]
-> **Main View Indicator**: When you select a large PDF or PPTX file to load, a centered loading overlay will appear to let you know the app is processing the document.
+> [!IMPORTANT]
+> **Mode Definitions**:
+> 1.  **Preparation Mode (Default)**: Full interface with collapsible sidebar (current behavior).
+> 2.  **Teaching Mode**: Immersive full-screen view. The sidebar is completely hidden, and the focus is entirely on the canvas and bottom toolbars.
+> 3.  **Desktop Mode**: Minimizes the main window to allow interaction with the desktop while keeping a floating tool overlay (simulated as window minimization on desktop platforms).
 
 ## Proposed Changes
 
-### [mobile](file:///Users/miurin/Desktop/painting_tool_co_rasel/mobile)
+### State Management
+#### [MODIFY] [presentation_screen.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/presentation_screen.dart)
+- **New Enum**: `AppMode { preparation, teaching, desktop }`.
+- **New State Variable**: `AppMode _currentMode = AppMode.preparation`.
+- **Logic**:
+    - `Teaching Mode`: Set `_isSidebarCollapsed = true` and hide the toggle chevron.
+    - `Desktop Mode`: Implement window minimization logic.
 
-#### [MODIFY] [slide_thumbnail.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/mobile/lib/widgets/slide_thumbnail.dart)
+### UI Components
+#### [MODIFY] [presentation_screen.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/presentation_screen.dart)
+- **Vertical Menu Update**:
+    - Add a "Mode" sub-menu item.
+    - Implement a slide-out or secondary pop-up to select between the three modes.
+- **Layout Adjustments**:
+    - Condition the visibility of the sidebar toggle button based on `_currentMode`.
+    - Adjust `_buildSlideItem` padding and aspect ratio behavior for Teaching mode to ensure a "borderless" feel.
 
-- **Image Preview**: Update `frameBuilder` to show a `CircularProgressIndicator` while `frame` is null.
-- **PPTX Preview**: Add a loading state to `PptxSlideRenderer` or its wrapper in `SlideThumbnail` to show a spinner before the slide is ready.
-
-#### [MODIFY] [presentation_screen.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/mobile/lib/presentation_screen.dart)
-
-- **Global Loader**: In the `build` method of `_PresentationScreenState`, check the `_isLoadingDocument` flag. If true, show a centered `CircularProgressIndicator` overlay with a subtle dimmed background.
-- **PPTX Renderer**: Update `PptxSlideRenderer` to show a loading indicator if the slide details are still being processed (especially for the first render).
+### Desktop Integration
+#### [MODIFY] [pubspec.yaml](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/pubspec.yaml)
+- Add `window_manager` or `screen_retriever` if needed for window state control (I will check existing dependencies first).
 
 ## Verification Plan
 
+### Automated Tests
+- Verify that switching to `teaching` mode correctly collapses the sidebar and hides the toggle.
+- Verify that state (drawings) is preserved when switching between modes.
+
 ### Manual Verification
-1.  **Load a New Document**: Pick a multi-page PDF or a PPTX. Verify that a central loading indicator appears while the document is being processed.
-2.  **Sidebar Scrolling**: Scroll the sidebar quickly. Verify that new thumbnails show a small loading spinner before the preview image appears.
-3.  **PPTX Slides**: Navigate through PPTX slides. Verify that if a slide takes a moment to render, a spinner is visible.
+- **Preparation -> Teaching**: Sidebar should disappear smoothly, and the canvas should expand.
+- **Teaching -> Preparation**: Sidebar toggle should reappear.
+- **Mode Switcher**: Ensure the vertical menu sub-options are clearly visible and tappable.

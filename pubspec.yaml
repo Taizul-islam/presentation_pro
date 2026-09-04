@@ -23,6 +23,8 @@ dependencies:
   archive:
   xml:
   pdf:
+  printing:
+  window_manager:
 
 dev_dependencies:
   flutter_test:
