@@ -10,6 +10,8 @@ import '../widgets/drawing_canvas.dart';
 import '../widgets/stroke_width_slider.dart';
 import '../widgets/slide_thumbnail.dart';
 import '../widgets/samsung_menu_item.dart';
+import '../widgets/drawing_text_widget.dart';
+import '../widgets/text_formatting_dialog.dart';
 import '../services/pptx_converter_libreoffice.dart';
 import '../services/export_service.dart';
 
@@ -29,7 +31,15 @@ class _PresentationScreenState extends State<PresentationScreen>
   bool _isSidebarCollapsed = false;
   bool _isMenuVisible = false;
   bool _isModeSubMenuVisible = false;
+  bool _isContextSubMenuVisible = false;
+  bool _isThicknessSubMenuVisible = false;
+  bool _isTextFormattingVisible = false;
+  bool _isAdjustingThickness = false;
   AppMode _currentMode = AppMode.preparation;
+  Rect? _activeSelectionRect;
+  List<int> _activeSelectedIndices = [];
+  int? _activeTextIndex;
+  double _currentSelectionThickness = 4.0;
   
   Color _selectedColor = Colors.red;
   double _strokeWidth = 4.0;
@@ -41,8 +51,8 @@ class _PresentationScreenState extends State<PresentationScreen>
   List<PresentationPage> _pages = [];
   DrawingStroke? _currentStroke;
 
-  final List<List<DrawingStroke>> _undoHistory = [];
-  final List<List<DrawingStroke>> _redoHistory = [];
+  final List<PresentationPage> _undoHistory = [];
+  final List<PresentationPage> _redoHistory = [];
 
   PdfDocument? _currentPdfDocument;
   bool _isLoadingDocument = false;
@@ -50,6 +60,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   String _loadingMessage = 'Processing Document...';
 
   final ScrollController _sidebarScrollController = ScrollController();
+  final ScrollController _contextMenuScrollController = ScrollController();
   late PageController _pageController;
 
   @override
@@ -81,6 +92,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   void dispose() {
     _currentPdfDocument?.dispose();
     _sidebarScrollController.dispose();
+    _contextMenuScrollController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -128,8 +140,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _endStroke() {
     if (_currentStroke != null && _currentStroke!.points.length > 1) {
       setState(() {
-        _undoHistory.add(List.from(_pages[_currentPageIndex].strokes));
-        _redoHistory.clear();
+        _saveToHistory();
 
         final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes)
           ..add(_currentStroke!);
@@ -144,20 +155,20 @@ class _PresentationScreenState extends State<PresentationScreen>
     }
   }
 
+  void _saveToHistory() {
+    _undoHistory.add(_pages[_currentPageIndex]);
+    _redoHistory.clear();
+    if (_undoHistory.length > 50) _undoHistory.removeAt(0);
+  }
+
   void _undo() {
-    if (_pages[_currentPageIndex].strokes.isNotEmpty || _undoHistory.isNotEmpty) {
+    if (_undoHistory.isNotEmpty) {
       setState(() {
-        if (_undoHistory.isNotEmpty) {
-           _redoHistory.add(List.from(_pages[_currentPageIndex].strokes));
-          _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(
-            strokes: _undoHistory.removeLast(),
-          );
-          _pages = List.from(_pages);
-        } else {
-          _redoHistory.add(List.from(_pages[_currentPageIndex].strokes));
-          _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: []);
-          _pages = List.from(_pages);
-        }
+        _redoHistory.add(_pages[_currentPageIndex]);
+        _pages[_currentPageIndex] = _undoHistory.removeLast();
+        _pages = List.from(_pages);
+        _activeTextIndex = null;
+        _activeSelectionRect = null;
       });
     }
   }
@@ -165,10 +176,8 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _redo() {
     if (_redoHistory.isNotEmpty) {
       setState(() {
-        _undoHistory.add(List.from(_pages[_currentPageIndex].strokes));
-        _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(
-          strokes: _redoHistory.removeLast(),
-        );
+        _undoHistory.add(_pages[_currentPageIndex]);
+        _pages[_currentPageIndex] = _redoHistory.removeLast();
         _pages = List.from(_pages);
       });
     }
@@ -176,8 +185,8 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   void _clearStrokes() {
     setState(() {
-      _undoHistory.add(List.from(_pages[_currentPageIndex].strokes));
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: []);
+      _saveToHistory();
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: [], texts: []);
       _pages = List.from(_pages);
     });
   }
@@ -337,7 +346,13 @@ class _PresentationScreenState extends State<PresentationScreen>
           });
         },
       );
-      if (path != null) _showSnackBar('PDF Exported', Colors.green, Icons.check_circle);
+      if (path != null) {
+        _showSnackBar('PDF Exported to: ${path.split(Platform.pathSeparator).last}', Colors.green, Icons.check_circle);
+      } else {
+        _showSnackBar('Export cancelled or failed. Check permissions.', Colors.orange, Icons.warning);
+      }
+    } catch (e) {
+      _showSnackBar('Error: ${e.toString()}', Colors.red, Icons.error);
     } finally {
       setState(() => _isLoadingDocument = false);
     }
@@ -360,7 +375,13 @@ class _PresentationScreenState extends State<PresentationScreen>
           });
         },
       );
-      if (path != null) _showSnackBar('PPTX Exported', Colors.green, Icons.check_circle);
+      if (path != null) {
+        _showSnackBar('PPTX Exported to: ${path.split(Platform.pathSeparator).last}', Colors.green, Icons.check_circle);
+      } else {
+        _showSnackBar('Export failed. Make sure the file isn\'t open elsewhere.', Colors.orange, Icons.warning);
+      }
+    } catch (e) {
+      _showSnackBar('Error: ${e.toString()}', Colors.red, Icons.error);
     } finally {
       setState(() => _isLoadingDocument = false);
     }
@@ -381,23 +402,29 @@ class _PresentationScreenState extends State<PresentationScreen>
       print('DEBUG: Calling ExportService.printPages...');
       // Decouple the call from the current animation frame
       Future.microtask(() async {
-        await ExportService.printPages(
-          _pages,
-          onProgress: (current, total) {
-            if (mounted) {
-              setState(() {
-                _loadingMessage = 'Rendering Page $current of $total...';
-                _loadingProgress = current / total;
-              });
-            }
-          },
-        );
-        if (mounted) setState(() => _isLoadingDocument = false);
+        try {
+          await ExportService.printPages(
+            _pages,
+            onProgress: (current, total) {
+              if (mounted) {
+                setState(() {
+                  _loadingMessage = 'Rendering Page $current of $total...';
+                  _loadingProgress = current / total;
+                });
+              }
+            },
+          );
+        } catch (e) {
+           _showSnackBar('Printing failed: $e', Colors.red, Icons.error);
+        } finally {
+          if (mounted) setState(() => _isLoadingDocument = false);
+        }
       });
       print('DEBUG: Print task scheduled');
     } catch (e) {
       print('DEBUG: Error in _printPresentation schedule: $e');
       if (mounted) setState(() => _isLoadingDocument = false);
+      _showSnackBar('Error: ${e.toString()}', Colors.red, Icons.error);
     }
   }
 
@@ -438,18 +465,6 @@ class _PresentationScreenState extends State<PresentationScreen>
               Expanded(child: _buildContentPage()),
             ],
           ),
-
-          if (_isDrawingMode && (_isMenuVisible || _isModeSubMenuVisible))
-            GestureDetector(
-              onTap: () => setState(() {
-                _isMenuVisible = false;
-                _isModeSubMenuVisible = false;
-              }),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                color: Colors.transparent,
-              ),
-            ),
 
           if (_isDrawingMode && _isMenuVisible)
             Positioned(
@@ -536,7 +551,16 @@ class _PresentationScreenState extends State<PresentationScreen>
     return PageView.builder(
       controller: _pageController,
       itemCount: _pages.length,
-      onPageChanged: (index) => setState(() => _currentPageIndex = index),
+      onPageChanged: (index) {
+        setState(() {
+          _currentPageIndex = index;
+          _activeTextIndex = null;
+          _activeSelectionRect = null;
+          _isContextSubMenuVisible = false;
+          _isThicknessSubMenuVisible = false;
+          _isTextFormattingVisible = false;
+        });
+      },
       itemBuilder: (context, index) => _buildSlideItem(index),
     );
   }
@@ -544,54 +568,139 @@ class _PresentationScreenState extends State<PresentationScreen>
   Widget _buildSlideItem(int index) {
     final page = _pages[index];
     final isCurrentPage = _currentPageIndex == index;
-    final hasDrawing = page.strokes.isNotEmpty || (isCurrentPage && _currentStroke != null);
+    final hasDrawing = page.strokes.isNotEmpty || page.texts.isNotEmpty || (isCurrentPage && _currentStroke != null);
     final isTeachingMode = _currentMode == AppMode.teaching;
 
-    Widget content = Stack(
-      children: [
-        Positioned.fill(child: _buildPageContent(page, hasDrawing: hasDrawing)),
-        DrawingCanvas(
-          strokes: page.strokes,
-          currentStroke: isCurrentPage ? _currentStroke : null,
-          selectedColor: _selectedColor,
-          strokeWidth: _strokeWidth,
-          eraserWidth: _eraserWidth,
-          selectedTool: _selectedTool,
-          hoverPosition: isCurrentPage ? _hoverPosition : null,
-          onStrokeStart: _startStroke,
-          onStrokeUpdate: _updateStroke,
-          onStrokeEnd: _endStroke,
-          onHoverUpdate: (pos) => setState(() => _hoverPosition = pos),
-          onStrokesMoved: _handleStrokesMoved,
-        ),
-      ],
-    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        Widget buildContent(double slideWidth, double slideHeight) {
+          return Stack(
+            children: [
+              Positioned.fill(child: _buildPageContent(page, hasDrawing: hasDrawing)),
+              DrawingCanvas(
+                strokes: page.strokes,
+                currentStroke: isCurrentPage ? _currentStroke : null,
+                selectedColor: _selectedColor,
+                strokeWidth: _strokeWidth,
+                eraserWidth: _eraserWidth,
+                selectedTool: _selectedTool,
+                hoverPosition: isCurrentPage ? _hoverPosition : null,
+                onStrokeStart: _startStroke,
+                onStrokeUpdate: _updateStroke,
+                onStrokeEnd: _endStroke,
+                onHoverUpdate: (pos) => setState(() => _hoverPosition = pos),
+                onStrokesMoved: _handleStrokesMoved,
+                onStrokesScaled: _handleStrokesScaled,
+                onStrokesRotated: _handleStrokesRotated,
+                onSelectionChanged: (rect, indices) {
+                  _cleanupEmptyTexts();
+                  setState(() {
+                    _activeSelectionRect = rect;
+                    _activeSelectedIndices = indices;
+                    _isContextSubMenuVisible = false;
+                    _isThicknessSubMenuVisible = false;
+                    
+                    if (indices.isNotEmpty) {
+                      _currentSelectionThickness = _pages[_currentPageIndex].strokes[indices.first].width;
+                    }
+                  });
+                },
+                onTextCreated: _handleTextCreated,
+                onInteraction: () {
+                  _cleanupEmptyTexts();
+                  if (_isMenuVisible || _isModeSubMenuVisible || _isContextSubMenuVisible || _isThicknessSubMenuVisible) {
+                    setState(() {
+                      _isMenuVisible = false;
+                      _isModeSubMenuVisible = false;
+                      _isContextSubMenuVisible = false;
+                      _isThicknessSubMenuVisible = false;
+                    });
+                  }
+                },
+              ),
+              ...page.texts.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final text = entry.value;
 
-    if (isTeachingMode) {
-      return Container(
-        color: page.backgroundColor ?? Colors.white,
-        child: content,
-      );
-    }
+                // Scale normalized text to current slide pixels
+                final scaledText = text.copyWith(
+                  position: Offset(text.position.dx * slideWidth, text.position.dy * slideHeight),
+                  width: text.width * (slideWidth / 1920.0), // Use 1920 as base width for text box
+                  fontSize: text.fontSize * (slideWidth / 1920.0),
+                );
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: AspectRatio(
-          aspectRatio: page.aspectRatio ?? 16 / 9,
-          child: Container(
-            decoration: BoxDecoration(
-              color: page.backgroundColor ?? Colors.white,
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
-            ),
-            child: InteractiveViewer(
-              minScale: 1.0,
-              maxScale: 5.0,
-              child: content,
+                return DrawingTextWidget(
+                  element: scaledText,
+                  isSelected: isCurrentPage && _activeTextIndex == idx,
+                  onTextChanged: (val) => _updateText(idx, val),
+                  onPositionChanged: (delta) => _moveText(idx, Offset(delta.dx / slideWidth, delta.dy / slideHeight)),
+                  onWidthChanged: (val) => _resizeTextWidth(idx, val / (slideWidth / 1920.0)),
+                  onScaleChanged: (w, s) => _scaleText(idx, w / (slideWidth / 1920.0), s / (slideWidth / 1920.0)),
+                  onInteractionStart: () => _saveToHistory(),
+                  onTap: () => setState(() {
+                    _activeTextIndex = idx;
+                    _isTextFormattingVisible = true;
+                  }),
+                );
+              }),
+              if (isCurrentPage && _activeSelectionRect != null && _selectedTool == DrawingTool.selector) ...[
+                _buildVerticalSelectionToolbar(_activeSelectionRect!, slideWidth, slideHeight),
+                if (_isContextSubMenuVisible)
+                  _buildExpandedContextMenu(_activeSelectionRect!, slideWidth, slideHeight),
+                if (_isContextSubMenuVisible && _isThicknessSubMenuVisible)
+                  _buildThicknessSubMenu(_activeSelectionRect!, slideWidth, slideHeight),
+              ],
+              if (isCurrentPage && 
+                  _activeTextIndex != null && 
+                  _isTextFormattingVisible && 
+                  _activeTextIndex! >= 0 && 
+                  _activeTextIndex! < page.texts.length)
+                Positioned(
+                  right: 20,
+                  top: 20,
+                  child: TextFormattingDialog(
+                    element: page.texts[_activeTextIndex!],
+                    onChanged: (updated) => _updateTextElement(_activeTextIndex!, updated),
+                    onClose: () => setState(() => _isTextFormattingVisible = false),
+                  ),
+                ),
+            ],
+          );
+        }
+
+        if (isTeachingMode) {
+          return Container(
+            color: page.backgroundColor ?? Colors.white,
+            child: buildContent(constraints.maxWidth, constraints.maxHeight),
+          );
+        }
+
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: AspectRatio(
+              aspectRatio: page.aspectRatio ?? 16 / 9,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: page.backgroundColor ?? Colors.white,
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
+                ),
+                child: InteractiveViewer(
+                  minScale: 1.0,
+                  maxScale: 5.0,
+                  panEnabled: _selectedTool == DrawingTool.hand,
+                  scaleEnabled: _selectedTool == DrawingTool.hand,
+                  child: LayoutBuilder(
+                    builder: (context, slideConstraints) {
+                      return buildContent(slideConstraints.maxWidth, slideConstraints.maxHeight);
+                    },
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -687,8 +796,9 @@ class _PresentationScreenState extends State<PresentationScreen>
               tooltip: 'Background Color',
             ),
             _buildToolbarIcon(Icons.auto_fix_high, DrawingTool.eraser, _selectedTool == DrawingTool.eraser),
-            _buildToolbarIcon(Icons.back_hand, null, false),
-            _buildToolbarIcon(Icons.text_fields, DrawingTool.highlighter, _selectedTool == DrawingTool.highlighter),
+            _buildToolbarIcon(Icons.title, DrawingTool.text, _selectedTool == DrawingTool.text),
+            _buildToolbarIcon(Icons.back_hand, DrawingTool.hand, _selectedTool == DrawingTool.hand),
+            _buildToolbarIcon(Icons.highlight, DrawingTool.highlighter, _selectedTool == DrawingTool.highlighter),
             GestureDetector(
               onTap: _showDrawingColorPicker,
               child: Container(
@@ -715,12 +825,74 @@ class _PresentationScreenState extends State<PresentationScreen>
     if (indices.isEmpty || delta == Offset.zero) return;
 
     setState(() {
-      _undoHistory.add(List<DrawingStroke>.from(_pages[_currentPageIndex].strokes));
-      _redoHistory.clear();
+      _saveToHistory();
 
       final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
       for (final index in indices) {
         updatedStrokes[index] = updatedStrokes[index].translate(delta);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _handleStrokesScaled(List<int> indices, double scaleX, double scaleY, Offset pivot) {
+    if (indices.isEmpty) return;
+
+    setState(() {
+      _saveToHistory();
+
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      for (final index in indices) {
+        updatedStrokes[index] = updatedStrokes[index].scale(scaleX, scaleY, pivot);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _handleStrokesRotated(List<int> indices, double angle, Offset center) {
+    if (indices.isEmpty) return;
+
+    setState(() {
+      _saveToHistory();
+
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      for (final index in indices) {
+        updatedStrokes[index] = updatedStrokes[index].rotate(angle, center);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _deleteSelectedStrokes() {
+    print('DEBUG: _deleteSelectedStrokes activeSelectedIndices=${_activeSelectedIndices.length}');
+    if (_activeSelectedIndices.isEmpty) return;
+    setState(() {
+      _saveToHistory();
+
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final sortedIndices = List<int>.from(_activeSelectedIndices)..sort((a, b) => b.compareTo(a));
+      for (final index in sortedIndices) {
+        updatedStrokes.removeAt(index);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+      _activeSelectedIndices = [];
+      _activeSelectionRect = null;
+    });
+  }
+
+  void _duplicateSelectedStrokes() {
+    if (_activeSelectedIndices.isEmpty) return;
+    setState(() {
+      _saveToHistory();
+
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final offset = const Offset(20, 20);
+      for (final index in _activeSelectedIndices) {
+        updatedStrokes.add(_pages[_currentPageIndex].strokes[index].translate(offset));
       }
       _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
       _pages = List.from(_pages);
@@ -774,10 +946,26 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
+  void _cleanupEmptyTexts() {
+    final currentPage = _pages[_currentPageIndex];
+    if (currentPage.texts.any((t) => t.text.trim().isEmpty)) {
+      setState(() {
+        final updatedTexts = currentPage.texts.where((t) => t.text.trim().isNotEmpty).toList();
+        _pages[_currentPageIndex] = currentPage.copyWith(texts: updatedTexts);
+        _pages = List.from(_pages);
+        _activeTextIndex = null;
+        _isTextFormattingVisible = false;
+      });
+    }
+  }
+
   Widget _buildToolbarIcon(IconData icon, DrawingTool? tool, bool isSelected) {
     return IconButton(
       icon: Icon(icon, color: isSelected ? Colors.indigo : Colors.grey),
-      onPressed: tool == null ? null : () => setState(() => _selectedTool = tool),
+      onPressed: tool == null ? null : () {
+        _cleanupEmptyTexts();
+        setState(() => _selectedTool = tool);
+      },
     );
   }
 
@@ -932,6 +1120,345 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
+  Widget _buildVerticalSelectionToolbar(Rect rect, double slideWidth, double slideHeight) {
+    const double toolbarWidth = 45.0;
+    const double toolbarHeight = 225.0;
+    const double expandedMenuWidth = 220.0;
+
+    bool hasSpaceOnRight = (rect.right + 10 + toolbarWidth + expandedMenuWidth + 20) < slideWidth;
+    double left = hasSpaceOnRight ? (rect.right + 10) : (rect.left - 10 - toolbarWidth);
+    double top = rect.top.clamp(10.0, (slideHeight - toolbarHeight - 20).clamp(10.0, slideHeight));
+
+    return Positioned(
+      left: left,
+      top: top,
+      child: GestureDetector(
+        onTap: () {}, // Shield
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: toolbarWidth,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+            border: Border.all(color: Colors.grey.shade300, width: 0.5),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildContextAction(Icons.delete_outline, _deleteSelectedStrokes, Colors.red),
+              _buildContextAction(Icons.palette_outlined, _showDrawingColorPicker, Colors.indigo),
+              _buildContextAction(Icons.layers_outlined, () {}, Colors.grey.shade700),
+              _buildContextAction(Icons.copy_outlined, _duplicateSelectedStrokes, Colors.grey.shade700),
+              _buildContextAction(Icons.menu, () {
+                setState(() {
+                  _isContextSubMenuVisible = !_isContextSubMenuVisible;
+                  if (!_isContextSubMenuVisible) _isThicknessSubMenuVisible = false;
+                });
+              }, Colors.grey.shade700),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedContextMenu(Rect rect, double slideWidth, double slideHeight) {
+    const double toolbarWidth = 45.0;
+    const double toolbarHeight = 225.0;
+    const double expandedMenuWidth = 220.0;
+    const double maxMenuHeight = 350.0;
+
+    bool hasSpaceOnRight = (rect.right + 10 + toolbarWidth + expandedMenuWidth + 20) < slideWidth;
+    double toolbarTop = rect.top.clamp(10.0, (slideHeight - toolbarHeight - 20).clamp(10.0, slideHeight));
+    bool spaceBelow = (slideHeight - toolbarTop) > (maxMenuHeight + 20);
+
+    double left = hasSpaceOnRight ? (rect.right + 10 + toolbarWidth + 10) : (rect.left - 10 - toolbarWidth - 10 - expandedMenuWidth);
+    double? top = spaceBelow ? toolbarTop : null;
+    double? bottom = spaceBelow ? null : (slideHeight - (toolbarTop + toolbarHeight)); // Align with toolbar bottom
+
+    return Positioned(
+      left: left,
+      top: top,
+      bottom: bottom,
+      child: GestureDetector(
+        onTap: () {}, // Shield
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: expandedMenuWidth,
+          constraints: BoxConstraints(maxHeight: maxMenuHeight),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15)],
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Scrollbar(
+              controller: _contextMenuScrollController,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _contextMenuScrollController,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildExpandedMenuItem(Icons.lock_outline, 'Lock', _toggleLockSelected),
+                    _buildExpandedMenuItem(
+                      Icons.line_weight,
+                      'Line thickness',
+                      () => setState(() => _isThicknessSubMenuVisible = !_isThicknessSubMenuVisible),
+                      hasSubmenu: true,
+                      isActive: _isThicknessSubMenuVisible,
+                    ),
+                    _buildExpandedMenuItem(Icons.format_color_fill, 'Fill color', () {}, hasSubmenu: true),
+                    _buildExpandedMenuItem(Icons.add_to_photos_outlined, 'Add to resource library', () {}),
+                    _buildExpandedMenuItem(Icons.link, 'Edit hyperlink', () {}),
+                    _buildExpandedMenuItem(Icons.compare_arrows, 'Mirror', _mirrorSelected),
+                    _buildExpandedMenuItem(Icons.unfold_more, 'Flip', _flipSelected),
+                    _buildExpandedMenuItem(Icons.copy_all, 'Copy', _duplicateSelectedStrokes),
+                    _buildExpandedMenuItem(Icons.content_cut, 'Shear', () {}),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThicknessSubMenu(Rect rect, double slideWidth, double slideHeight) {
+    const double toolbarWidth = 45.0;
+    const double toolbarHeight = 225.0;
+    const double expandedMenuWidth = 220.0;
+    const double thicknessSubMenuWidth = 180.0;
+
+    bool hasSpaceOnRight = (rect.right + 10 + toolbarWidth + expandedMenuWidth + 20) < slideWidth;
+    double toolbarTop = rect.top.clamp(10.0, (slideHeight - toolbarHeight - 20).clamp(10.0, slideHeight));
+
+    // Horizontal position: outside the expanded menu
+    double left = hasSpaceOnRight 
+        ? (rect.right + 10 + toolbarWidth + 10 + expandedMenuWidth + 5)
+        : (rect.left - 10 - toolbarWidth - 10 - expandedMenuWidth - 5 - thicknessSubMenuWidth);
+
+    // Vertical position: align with the "Line thickness" item in the context menu
+    // The items are ~45px high, and it's the 2nd item.
+    double top = toolbarTop + 45.0;
+
+    return Positioned(
+      left: left,
+      top: top,
+      child: GestureDetector(
+        onTap: () {}, // Shield
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: thicknessSubMenuWidth,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.line_weight, size: 16, color: Colors.grey.shade600),
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 2,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                  ),
+                  child: Slider(
+                    value: _currentSelectionThickness,
+                    min: 1.0,
+                    max: 30.0,
+                    activeColor: Colors.indigo,
+                    inactiveColor: Colors.grey.shade200,
+                    onChangeStart: (val) {
+                      _isAdjustingThickness = true;
+                      _saveToHistory();
+                    },
+                    onChanged: (val) {
+                      setState(() => _currentSelectionThickness = val);
+                      _updateSelectedStrokesWidth(val);
+                    },
+                    onChangeEnd: (val) {
+                      _isAdjustingThickness = false;
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedMenuItem(IconData icon, String label, VoidCallback onTap, {bool hasSubmenu = false, bool isActive = false}) {
+    return InkWell(
+      onTap: () {
+        onTap();
+        if (!hasSubmenu) setState(() => _isContextSubMenuVisible = false);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.indigo.withOpacity(0.05) : Colors.transparent,
+          border: Border(bottom: BorderSide(color: Colors.grey.shade100, width: 0.5)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: isActive ? Colors.indigo : Colors.grey.shade700),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.w500,
+                  color: isActive ? Colors.indigo : Colors.grey.shade800,
+                ),
+              ),
+            ),
+            if (hasSubmenu) Icon(Icons.arrow_right, size: 16, color: isActive ? Colors.indigo : Colors.grey.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _toggleLockSelected() {
+    if (_activeSelectedIndices.isEmpty) return;
+    setState(() {
+      _saveToHistory();
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      for (final index in _activeSelectedIndices) {
+        updatedStrokes[index] = updatedStrokes[index].copyWith(isLocked: !updatedStrokes[index].isLocked);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _mirrorSelected() {
+    if (_activeSelectedIndices.isEmpty || _activeSelectionRect == null) return;
+    setState(() {
+      _saveToHistory();
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final center = _activeSelectionRect!.center;
+      for (final index in _activeSelectedIndices) {
+        updatedStrokes[index] = updatedStrokes[index].flip(true, center);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _flipSelected() {
+    if (_activeSelectedIndices.isEmpty || _activeSelectionRect == null) return;
+    setState(() {
+      _saveToHistory();
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final center = _activeSelectionRect!.center;
+      for (final index in _activeSelectedIndices) {
+        updatedStrokes[index] = updatedStrokes[index].flip(false, center);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _handleTextCreated(Offset position) {
+    setState(() {
+      _saveToHistory();
+      
+      final newText = DrawingText(position: position);
+      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts)..add(newText);
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages = List.from(_pages);
+      _activeTextIndex = updatedTexts.length - 1;
+      _isTextFormattingVisible = true;
+    });
+  }
+
+  void _updateText(int index, String text) {
+    setState(() {
+      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      updatedTexts[index] = updatedTexts[index].copyWith(text: text);
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _moveText(int index, Offset delta) {
+    setState(() {
+      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      updatedTexts[index] = updatedTexts[index].translate(delta);
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _resizeTextWidth(int index, double width) {
+    setState(() {
+      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      updatedTexts[index] = updatedTexts[index].copyWith(width: width.clamp(50.0, 2000.0));
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _scaleText(int index, double width, double fontSize) {
+    setState(() {
+      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      updatedTexts[index] = updatedTexts[index].copyWith(
+        width: width.clamp(40.0, 2000.0),
+        fontSize: fontSize,
+      );
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _updateTextElement(int index, DrawingText updated) {
+    setState(() {
+      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      updatedTexts[index] = updated;
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages = List.from(_pages);
+    });
+  }
+
+  void _updateSelectedStrokesWidth(double width) {
+    if (_activeSelectedIndices.isEmpty) return;
+    setState(() {
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      for (final index in _activeSelectedIndices) {
+        updatedStrokes[index] = updatedStrokes[index].copyWith(width: width);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+    });
+  }
+
+  Widget _buildContextAction(IconData icon, VoidCallback onTap, Color color) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.transparent,
+        ),
+        child: Icon(icon, size: 20, color: color),
+      ),
+    );
+  }
+
   Widget _buildModeItem({required IconData icon, required String label, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
@@ -963,8 +1490,12 @@ class _PresentationScreenState extends State<PresentationScreen>
       }
     });
 
-    if (mode == AppMode.desktop) {
-      if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+    if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+      if (mode == AppMode.teaching) {
+        await windowManager.maximize();
+      } else if (mode == AppMode.preparation) {
+        await windowManager.unmaximize();
+      } else if (mode == AppMode.desktop) {
         await windowManager.minimize();
       }
     }

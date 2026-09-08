@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 enum DrawingTool {
@@ -5,6 +6,8 @@ enum DrawingTool {
   highlighter,
   eraser,
   selector,
+  hand,
+  text,
 }
 
 enum PageContentType {
@@ -19,12 +22,14 @@ class DrawingStroke {
   final Color color;
   final double width;
   final DrawingTool tool;
+  final bool isLocked;
 
   DrawingStroke({
     required this.points,
     required this.color,
     required this.width,
     required this.tool,
+    this.isLocked = false,
   });
 
   Rect get boundingBox {
@@ -45,12 +50,143 @@ class DrawingStroke {
   }
 
   DrawingStroke translate(Offset delta) {
+    if (isLocked) return this;
     return DrawingStroke(
       points: points.map((p) => p + delta).toList(),
       color: color,
       width: width,
       tool: tool,
+      isLocked: isLocked,
     );
+  }
+
+  DrawingStroke scale(double scaleX, double scaleY, Offset origin) {
+    if (isLocked) return this;
+    return DrawingStroke(
+      points: points.map((p) {
+        double dx = origin.dx + (p.dx - origin.dx) * scaleX;
+        double dy = origin.dy + (p.dy - origin.dy) * scaleY;
+        return Offset(dx, dy);
+      }).toList(),
+      color: color,
+      width: width, 
+      tool: tool,
+      isLocked: isLocked,
+    );
+  }
+
+  DrawingStroke rotate(double angle, Offset center) {
+    if (isLocked) return this;
+    return DrawingStroke(
+      points: points.map((p) {
+        double x = p.dx - center.dx;
+        double y = p.dy - center.dy;
+
+        double cosA = math.cos(angle);
+        double sinA = math.sin(angle);
+
+        double newX = x * cosA - y * sinA;
+        double newY = x * sinA + y * cosA;
+
+        return Offset(newX + center.dx, newY + center.dy);
+      }).toList(),
+      color: color,
+      width: width,
+      tool: tool,
+      isLocked: isLocked,
+    );
+  }
+
+  DrawingStroke flip(bool horizontal, Offset center) {
+    if (isLocked) return this;
+    return DrawingStroke(
+      points: points.map((p) {
+        double dx = horizontal ? center.dx - (p.dx - center.dx) : p.dx;
+        double dy = horizontal ? p.dy : center.dy - (p.dy - center.dy);
+        return Offset(dx, dy);
+      }).toList(),
+      color: color,
+      width: width,
+      tool: tool,
+      isLocked: isLocked,
+    );
+  }
+
+  DrawingStroke copyWith({
+    List<Offset>? points,
+    Color? color,
+    double? width,
+    DrawingTool? tool,
+    bool? isLocked,
+  }) {
+    return DrawingStroke(
+      points: points ?? this.points,
+      color: color ?? this.color,
+      width: width ?? this.width,
+      tool: tool ?? this.tool,
+      isLocked: isLocked ?? this.isLocked,
+    );
+  }
+}
+
+class DrawingText {
+  final String text;
+  final Offset position;
+  final double width;
+  final double fontSize;
+  final String fontFamily;
+  final bool isBold;
+  final bool isItalic;
+  final bool isUnderlined;
+  final Color color;
+  final TextAlign alignment;
+  final bool isLocked;
+
+  DrawingText({
+    this.text = '',
+    required this.position,
+    this.width = 200,
+    this.fontSize = 24,
+    this.fontFamily = 'Roboto',
+    this.isBold = false,
+    this.isItalic = false,
+    this.isUnderlined = false,
+    this.color = Colors.black,
+    this.alignment = TextAlign.left,
+    this.isLocked = false,
+  });
+
+  DrawingText copyWith({
+    String? text,
+    Offset? position,
+    double? width,
+    double? fontSize,
+    String? fontFamily,
+    bool? isBold,
+    bool? isItalic,
+    bool? isUnderlined,
+    Color? color,
+    TextAlign? alignment,
+    bool? isLocked,
+  }) {
+    return DrawingText(
+      text: text ?? this.text,
+      position: position ?? this.position,
+      width: width ?? this.width,
+      fontSize: fontSize ?? this.fontSize,
+      fontFamily: fontFamily ?? this.fontFamily,
+      isBold: isBold ?? this.isBold,
+      isItalic: isItalic ?? this.isItalic,
+      isUnderlined: isUnderlined ?? this.isUnderlined,
+      color: color ?? this.color,
+      alignment: alignment ?? this.alignment,
+      isLocked: isLocked ?? this.isLocked,
+    );
+  }
+
+  DrawingText translate(Offset delta) {
+    if (isLocked) return this;
+    return copyWith(position: position + delta);
   }
 }
 
@@ -60,6 +196,7 @@ class PresentationPage {
   final String subtitle;
   final IconData icon;
   final List<DrawingStroke> strokes;
+  final List<DrawingText> texts;
   final PageContentType contentType;
   final String? contentPath;
   final int? pdfPageIndex;
@@ -73,6 +210,7 @@ class PresentationPage {
     required this.subtitle,
     required this.icon,
     this.strokes = const [],
+    this.texts = const [],
     this.contentType = PageContentType.placeholder,
     this.contentPath,
     this.pdfPageIndex,
@@ -83,6 +221,7 @@ class PresentationPage {
 
   PresentationPage copyWith({
     List<DrawingStroke>? strokes,
+    List<DrawingText>? texts,
     PageContentType? contentType,
     String? contentPath,
     int? pdfPageIndex,
@@ -96,6 +235,7 @@ class PresentationPage {
       subtitle: subtitle,
       icon: icon,
       strokes: strokes ?? this.strokes,
+      texts: texts ?? this.texts,
       contentType: contentType ?? this.contentType,
       contentPath: contentPath ?? this.contentPath,
       pdfPageIndex: pdfPageIndex ?? this.pdfPageIndex,

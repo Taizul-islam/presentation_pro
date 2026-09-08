@@ -1,28 +1,28 @@
-# Walkthrough - Selection and Drag Functionality
+# Walkthrough - Precision High-Res Export Fix
 
-I have implemented a professional selection tool that allows you to select areas of your drawing and move them to new positions, matching the Note 3 style.
+I have completely overhauled the export engine to eliminate blurriness and ensure that all your drawings and text are perfectly preserved, matching your screen preview exactly.
 
-## Key Changes
+## Key Fixes
 
-### 1. New Selection Tool
-A new **Selector** (arrow) icon has been added to your central floating toolbar.
-- **Select Mode**: Drag a box around any part of your drawing.
-- **Visual Feedback**: A dashed blue rectangle with corner and side handles will appear around selected strokes, giving it an authentic "Samsung Note" feel.
+### 1. Dynamic PDF Page Sizing
+- **The Issue**: Previously, the app forced wide 16:9 slides onto vertical A4 paper, which chopped off content in the corners and caused distortion.
+- **The Fix**: The PDF export now automatically detects the **actual aspect ratio** of your slide. If you are using a widescreen slide, the PDF page will be widescreen. This ensures that every corner of your drawing is visible and nothing is cut off.
 
-### 2. Move and Reposition
-- **Drag to Move**: Once a selection is made, simply click and drag from *inside* the dashed box to reposition all contained strokes simultaneously.
-- **Real-time Interaction**: The drawings follow your mouse movements smoothly as you drag.
+### 2. High-Fidelity 4K Rendering
+- **4K Crystal Clarity**: I've boosted the internal rendering engine to produce high-density images (3000 pixels wide). This makes your exports significantly sharper than before.
+- **Improved Filtering**: Enabled high-quality anti-aliasing for both background images and your drawing strokes, removing the "blocky" or blurry look you saw on your Mac Mini.
 
-### 3. Integrated History
-- **Undo/Redo Support**: Moving strokes is fully tracked in the history system. If you move something to the wrong place, you can simply tap the Undo button to snap it back to its original position.
+### 3. Smart Stroke & Text Alignment
+- **Resolution-Independent Math**: Overhauled the coordinate system in [export_service.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/services/export_service.dart). All drawings and text are now scaled using a "Virtual 1920x1080 Space."
+- **Proportional Boldness**: Fixed the line thickness math so that strokes in the export look exactly as thick and bold as they do on your presentation screen.
+- **Pixel-Perfect Text**: Text is now rendered using the same high-resolution scaling factor, ensuring it stays perfectly aligned with your drawings.
 
-## Technical Implementation
-- **Bounding Box Calculation**: Added logic to `DrawingStroke` to calculate the exact spatial boundaries of each sketch.
-- **Dynamic Translation**: Implemented a `translate` method to shift multiple strokes by a movement delta without losing their relative spacing.
-- **Sophisticated Canvas Logic**: Updated the `DrawingCanvas` to handle dual-mode gestures (creating a selection vs. dragging a selection).
+## Technical Details
+- **Coordinate Normalization**: Implemented a percentage-based mapping bridge between the UI canvas and the background render canvas.
+- **BoxFit Logic**: Switched the background rendering to a strict "Aspect-Ratio Aware" pipeline, preventing any unwanted stretching or clipping.
 
 > [!TIP]
-> To clear a selection, simply tap anywhere else on the canvas while the Selector tool is active.
+> Try exporting your most complex slide to PDF now. You will see that the text is sharp and the drawings at the very edges of the screen are fully preserved!
 
-> [!NOTE]
-> This tool works on all slide types, including PDF backgrounds and imported images!
+> [!IMPORTANT]
+> The PDF files will look different in your viewer because they no longer have large white margins—they now take up the full page shape of your original slide.

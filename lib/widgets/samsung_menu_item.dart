@@ -48,12 +48,13 @@ class SamsungMenuItem extends StatelessWidget {
       );
     }
 
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 140,
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
+          color: Colors.white,
           border: Border(
             bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
           ),
@@ -61,15 +62,19 @@ class SamsungMenuItem extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon, color: Colors.grey.shade700, size: 18),
-            SizedBox(width: 12),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                color: Colors.grey.shade800,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                  color: Colors.grey.shade800,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
+            if (trailingIcon != null)
+              Icon(trailingIcon, color: Colors.grey.shade400, size: 14),
           ],
         ),
       ),

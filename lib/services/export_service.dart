@@ -10,6 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
 import 'package:pdfrx/pdfrx.dart' as pdfrx;
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/drawing_stroke.dart';
 
@@ -18,66 +19,50 @@ class ExportService {
     List<PresentationPage> pages, {
     Function(int current, int total)? onProgress,
   }) async {
-    // HEARTBEAT LOG - Using multiple methods to ensure visibility
-    print('!!! CRITICAL DEBUG: printPages entered !!!');
-    debugPrint('!!! CRITICAL DEBUG: printPages entered (debugPrint) !!!');
+    print('!!! DEBUG: printPages entered !!!');
     
     try {
       final pdf = pw.Document();
       final Map<String, pdfrx.PdfDocument> docCache = {};
 
-      print('DEBUG: Number of pages to process: ${pages.length}');
-
       for (int i = 0; i < pages.length; i++) {
-        print('DEBUG: Processing slide index $i...');
         onProgress?.call(i + 1, pages.length);
         
         final page = pages[i];
         final imageBytes = await _renderPageToImage(page, docCache: docCache);
         
         if (imageBytes != null) {
-          print('DEBUG: Slide $i rendered (${imageBytes.length} bytes)');
+          final double ratio = page.aspectRatio ?? 16 / 9;
+          // Standard A4 width is 595 points. 
+          // We use that as base and calculate height to maintain slide shape.
+          final double pageWidth = 842.0; // Widescreen landscape base
+          final double pageHeight = pageWidth / ratio;
+
           pdf.addPage(
             pw.Page(
-              pageFormat: PdfPageFormat.a4,
+              pageFormat: PdfPageFormat(pageWidth, pageHeight),
+              margin: const pw.EdgeInsets.all(0),
               build: (context) => pw.Center(child: pw.Image(pw.MemoryImage(imageBytes))),
             ),
           );
-        } else {
-          print('DEBUG: Slide $i render returned NULL');
         }
       }
 
-      print('DEBUG: Disposing cache...');
       for (final doc in docCache.values) {
         await doc.dispose();
       }
 
-      print('DEBUG: Pre-saving PDF document...');
       final Uint8List pdfBytes = await pdf.save();
-      print('DEBUG: PDF document saved (${pdfBytes.length} bytes)');
-
-      // IMPORTANT: Give the macOS event loop time to settle before opening a native sheet
-      print('DEBUG: Yielding thread for 500ms...');
       await Future.delayed(const Duration(milliseconds: 500));
 
-      print('DEBUG: Calling Printing.layoutPdf...');
-      try {
-        final success = await Printing.layoutPdf(
-          onLayout: (PdfPageFormat format) async => pdfBytes,
-          name: 'Presentation',
-          dynamicLayout: false,
-        );
-        print('DEBUG: Printing.layoutPdf finished (Result: $success)');
-      } catch (printError) {
-        print('DEBUG: Printing.layoutPdf failed directly: $printError');
-        print('DEBUG: Attempting fallback to sharePdf...');
-        await Printing.sharePdf(bytes: pdfBytes, filename: 'presentation.pdf');
-      }
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdfBytes,
+        name: 'Presentation',
+        dynamicLayout: false,
+      );
       
     } catch (e, stack) {
       print('DEBUG: ERROR in printPages: $e');
-      print('DEBUG: STACKTRACE: $stack');
     }
   }
 
@@ -95,14 +80,19 @@ class ExportService {
 
       for (int i = 0; i < pages.length; i++) {
         onProgress?.call(i + 1, pages.length);
-        final imageBytes = await _renderPageToImage(pages[i], docCache: docCache);
+        final page = pages[i];
+        final imageBytes = await _renderPageToImage(page, docCache: docCache);
 
         if (imageBytes != null) {
-          final image = pw.MemoryImage(imageBytes);
+          final double ratio = page.aspectRatio ?? 16 / 9;
+          final double pageWidth = 842.0;
+          final double pageHeight = pageWidth / ratio;
+
           pdf.addPage(
             pw.Page(
-              pageFormat: PdfPageFormat.a4,
-              build: (context) => pw.Center(child: pw.Image(image)),
+              pageFormat: PdfPageFormat(pageWidth, pageHeight),
+              margin: const pw.EdgeInsets.all(0),
+              build: (context) => pw.Center(child: pw.Image(pw.MemoryImage(imageBytes))),
             ),
           );
         }
@@ -159,76 +149,76 @@ class ExportService {
   }) async {
     print('DEBUG: _renderPageToImage starting for page ${page.pageNumber}');
     try {
-      const double width = 1200;
-      final double height = width / (page.aspectRatio ?? 16 / 9);
-      print('DEBUG: Target dimensions: ${width}x${height}');
+      // 1. High Resolution Setup (4K base)
+      const double targetWidth = 3000.0;
+      final double ratio = page.aspectRatio ?? 16 / 9;
+      final double targetHeight = targetWidth / ratio;
+      
+      print('DEBUG: Target high-res dimensions: ${targetWidth.toInt()}x${targetHeight.toInt()}');
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
 
+      // 2. Background
       final bgColor = page.backgroundColor ?? Colors.white;
-      canvas.drawRect(Rect.fromLTWH(0, 0, width, height), Paint()..color = bgColor);
+      canvas.drawRect(Rect.fromLTWH(0, 0, targetWidth, targetHeight), Paint()..color = bgColor);
 
       if (page.contentPath != null && page.contentPath!.isNotEmpty) {
-        print('DEBUG: Processing content from ${page.contentPath}');
+        print('DEBUG: Processing background content...');
+        ui.Image? bgImage;
+        
         if (page.contentType == PageContentType.pdf && page.pdfPageIndex != null) {
           pdfrx.PdfDocument? doc;
           if (docCache != null && docCache.containsKey(page.contentPath)) {
-            print('DEBUG: Using cached PDF document');
             doc = docCache[page.contentPath];
           } else {
-            print('DEBUG: Opening new PDF document...');
             doc = await pdfrx.PdfDocument.openFile(page.contentPath!);
             docCache?[page.contentPath!] = doc;
           }
 
           if (doc != null) {
-            print('DEBUG: Rendering PDF page ${page.pdfPageIndex}');
             final pdfPage = doc.pages[page.pdfPageIndex!];
             final pdfImage = await pdfPage.render(
-              fullWidth: width,
-              fullHeight: height,
+              fullWidth: targetWidth,
+              fullHeight: targetHeight,
             );
             if (pdfImage != null) {
-              print('DEBUG: Creating ui.Image from PdfImage...');
-              final uiImage = await pdfImage.createImage();
-              canvas.drawImageRect(
-                uiImage,
-                Rect.fromLTWH(0, 0, uiImage.width.toDouble(), uiImage.height.toDouble()),
-                Rect.fromLTWH(0, 0, width, height),
-                Paint(),
-              );
-              uiImage.dispose();
+              bgImage = await pdfImage.createImage();
             }
           }
         } else {
-          print('DEBUG: Handling as standard image...');
           final file = File(page.contentPath!);
           if (file.existsSync()) {
             final bytes = await file.readAsBytes();
-            print('DEBUG: Image bytes read (${bytes.length}). Decoding...');
             final codec = await ui.instantiateImageCodec(bytes);
             final frame = await codec.getNextFrame();
-            final image = frame.image;
-            
-            canvas.drawImageRect(
-              image,
-              Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-              Rect.fromLTWH(0, 0, width, height),
-              Paint(),
-            );
-            image.dispose();
+            bgImage = frame.image;
           }
+        }
+
+        if (bgImage != null) {
+          // Draw background with high quality filtering
+          canvas.drawImageRect(
+            bgImage,
+            Rect.fromLTWH(0, 0, bgImage.width.toDouble(), bgImage.height.toDouble()),
+            Rect.fromLTWH(0, 0, targetWidth, targetHeight),
+            Paint()..filterQuality = ui.FilterQuality.high,
+          );
+          bgImage.dispose();
         }
       }
 
+      // 3. Drawing Strokes
       print('DEBUG: Drawing ${page.strokes.length} strokes...');
+      // We use 1920 as the "standard" width for stroke thickness math
+      final double thicknessScale = targetWidth / 1920.0;
+
       for (final stroke in page.strokes) {
         if (stroke.points.length < 2) continue;
 
         final paint = Paint()
           ..color = stroke.color
-          ..strokeWidth = stroke.width * (width / 800)
+          ..strokeWidth = stroke.width * thicknessScale
           ..strokeCap = ui.StrokeCap.round
           ..strokeJoin = ui.StrokeJoin.round
           ..style = PaintingStyle.stroke
@@ -244,32 +234,54 @@ class ExportService {
         }
 
         final path = Path();
-        final scaleX = width / 800;
-        final scaleY = height / (800 / (page.aspectRatio ?? 16/9));
-
-        path.moveTo(stroke.points[0].dx * scaleX, stroke.points[0].dy * scaleY);
+        // Points are normalized (0.0 - 1.0)
+        path.moveTo(stroke.points[0].dx * targetWidth, stroke.points[0].dy * targetHeight);
         for (int i = 1; i < stroke.points.length; i++) {
-          path.lineTo(stroke.points[i].dx * scaleX, stroke.points[i].dy * scaleY);
+          path.lineTo(stroke.points[i].dx * targetWidth, stroke.points[i].dy * targetHeight);
         }
         canvas.drawPath(path, paint);
+      }
+
+      // 4. Text Elements
+      print('DEBUG: Drawing ${page.texts.length} text elements...');
+      for (final textElement in page.texts) {
+        if (textElement.text.trim().isEmpty) continue;
+
+        final textStyle = _getRenderTextStyle(textElement);
+        // Important: Use the same scale for text font and box width
+        final textSpan = TextSpan(
+          text: textElement.text,
+          style: textStyle.copyWith(fontSize: textElement.fontSize * thicknessScale),
+        );
+
+        final textPainter = TextPainter(
+          text: textSpan,
+          textAlign: textElement.alignment,
+          textDirection: TextDirection.ltr,
+        );
+
+        textPainter.layout(maxWidth: textElement.width * thicknessScale);
+        textPainter.paint(
+          canvas,
+          Offset(textElement.position.dx * targetWidth, textElement.position.dy * targetHeight),
+        );
       }
 
       print('DEBUG: Ending recording...');
       final picture = recorder.endRecording();
       
-      print('DEBUG: Converting picture to image (1200x${height.toInt()})...');
-      final finalImage = await picture.toImage(width.toInt(), height.toInt());
+      print('DEBUG: Converting picture to image (3000x${targetHeight.toInt()})...');
+      final finalImage = await picture.toImage(targetWidth.toInt(), targetHeight.toInt());
       
       print('DEBUG: Converting image to byte data (PNG)...');
       final byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png).timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 30),
         onTimeout: () {
-          print('DEBUG: toByteData TIMEOUT');
+          print('DEBUG: toByteData TIMEOUT after 30s');
           return null;
         },
       );
       
-      print('DEBUG: Disposing final image...');
       finalImage.dispose();
 
       if (byteData == null) return null;
@@ -277,8 +289,26 @@ class ExportService {
       return byteData.buffer.asUint8List();
     } catch (e, stack) {
       print('DEBUG: Error in _renderPageToImage: $e');
-      print('DEBUG: Stack trace: $stack');
       return null;
+    }
+  }
+
+  static TextStyle _getRenderTextStyle(DrawingText element) {
+    try {
+      return GoogleFonts.getFont(
+        element.fontFamily,
+        color: element.color,
+        fontWeight: element.isBold ? FontWeight.bold : FontWeight.normal,
+        fontStyle: element.isItalic ? FontStyle.italic : FontStyle.normal,
+        decoration: element.isUnderlined ? TextDecoration.underline : TextDecoration.none,
+      );
+    } catch (e) {
+      return TextStyle(
+        color: element.color,
+        fontWeight: element.isBold ? FontWeight.bold : FontWeight.normal,
+        fontStyle: element.isItalic ? FontStyle.italic : FontStyle.normal,
+        decoration: element.isUnderlined ? TextDecoration.underline : TextDecoration.none,
+      );
     }
   }
 
