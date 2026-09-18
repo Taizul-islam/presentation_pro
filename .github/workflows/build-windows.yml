@@ -36,14 +36,13 @@ jobs:
         run: |
           winget install --id TheDocumentFoundation.LibreOffice -e --accept-package-agreements --accept-source-agreements
 
-      - name: Find and Copy LibreOffice
+      - name: Copy LibreOffice
         shell: pwsh
         run: |
           $buildDir = "build\windows\x64\runner\Release"
           $loDir = "$buildDir\tools\libreoffice"
           New-Item -ItemType Directory -Path $loDir -Force
           
-          # Find LibreOffice installation
           $possiblePaths = @(
             "C:\Program Files\LibreOffice",
             "C:\Program Files (x86)\LibreOffice"
@@ -64,7 +63,7 @@ jobs:
             exit 1
           }
           
-          Write-Host "LibreOffice copied to: $loDir"
+          Write-Host "LibreOffice copied."
 
       - name: Download Poppler
         shell: pwsh
@@ -97,15 +96,31 @@ jobs:
         shell: pwsh
         run: |
           $buildDir = "build\windows\x64\runner\Release"
-          if (-not (Test-Path "$buildDir\mobile.exe")) { Write-Host "FAIL: mobile.exe"; exit 1 }
-          if (-not (Test-Path "$buildDir\pdfium.dll")) { Write-Host "FAIL: pdfium.dll"; exit 1 }
-          
+
+          # Auto-detect the main exe (excludes helper exes)
+          $mainExe = Get-ChildItem $buildDir -Filter "*.exe" | 
+                     Where-Object { $_.Name -notmatch "flutter_windows|crashpad" } | 
+                     Select-Object -First 1
+
+          if (-not $mainExe) {
+            Write-Host "FAIL: No main .exe found"
+            Get-ChildItem $buildDir -Filter "*.exe" | ForEach-Object { Write-Host "  $($_.Name)" }
+            exit 1
+          }
+
+          Write-Host "Main exe: $($mainExe.Name)"
+
+          if (-not (Test-Path "$buildDir\pdfium.dll")) {
+            Write-Host "FAIL: pdfium.dll missing"
+            exit 1
+          }
+
           $soffice = Get-ChildItem "$buildDir\tools" -Recurse -Filter "soffice.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           $pdftoppm = Get-ChildItem "$buildDir\tools" -Recurse -Filter "pdftoppm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          
+
           if (-not $soffice) { Write-Host "FAIL: soffice.exe"; exit 1 }
           if (-not $pdftoppm) { Write-Host "FAIL: pdftoppm.exe"; exit 1 }
-          
+
           Write-Host "All files verified."
 
       - name: Create ZIP
