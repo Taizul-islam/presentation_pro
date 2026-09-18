@@ -1,6 +1,7 @@
-- `[ ]` Implement robust Windows path and error handling for export
-    - `[ ]` Update `ExportService._getSavePath` for better Windows support
-    - `[ ]` Implement detailed error logging in `ExportService`
-    - `[ ]` Increase timeouts and add memory cleanup in `_renderPageToImage`
-- `[ ]` Create a detailed error dialog in `PresentationScreen`
-- `[ ]` Verify stability and error reporting
+- `[x]` Implement Memory-Safe Export Architecture
+    - `[x]` Reduce base resolution to 3200px (optimal balance for 4K and RAM)
+    - `[x]` Add aggressive memory flushing in `_renderPageToImage`
+    - `[x]` Implement slide-by-slide disposal for PDF and PPTX loops
+    - `[x]` Optimize PPTX zip finalized state
+- `[x]` Verify large file exports (10+ slides)
+- `[x]` Create Walkthrough artifact

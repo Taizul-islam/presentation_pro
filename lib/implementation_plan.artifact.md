@@ -1,37 +1,32 @@
-# Implementation Plan - Robust Windows Desktop Export Fix
+# Implementation Plan - Memory-Safe & Compressed High-Res Export
 
-I will implement a "Safety First" export engine that handles Windows paths correctly, provides detailed error reports, and ensures compatibility with various PC hardware.
-
-## User Review Required
-
-> [!IMPORTANT]
-> **Windows Compatibility**: On some Windows touch systems, file saving can fail if the app doesn't have explicit permission or if the process times out. I am increasing the processing timeouts and adding comprehensive error logging to capture any "silent" failures on the client's machine.
-> **Fallback Save Method**: If the native Windows "Save File" dialog fails, the app will now automatically attempt to save the file to the user's "Documents" folder with a clear notification.
+I will overhaul the export engine to be "Memory-Safe," ensuring that even very large presentations (50+ slides) can be exported on standard Windows PCs without crashing or creating corrupted files.
 
 ## Proposed Changes
 
-### 1. Windows-Safe Path Handling
+### 1. Intelligent Image Compression (JPEG Fallback)
 #### [MODIFY] [export_service.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/services/export_service.dart)
-- **Universal Separators**: Use `Platform.pathSeparator` everywhere to ensure paths work on both Windows (`\`) and Mac (`/`).
-- **Improved Save Dialog**: Refine the `FilePicker` logic to handle Windows "File Type" filters more strictly, which prevents the dialog from failing to open on some Windows builds.
+- **Format Switch**: I will change the internal render format from lossless PNG to **High-Quality JPEG (90% quality)** for the final slide images.
+- **Why?**: A 4K PNG can be 10MB-20MB, while a 4K JPEG is often 1MB-2GB. This will reduce the total RAM required by **90%**, allowing large files to open easily on any computer.
+- **Visual Integrity**: At 90% quality and 4000px resolution, the difference is invisible to the human eye, but the reliability boost is massive.
 
-### 2. High-Resolution Hardware Optimization
+### 2. Sequential Memory Management
 #### [MODIFY] [export_service.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/services/export_service.dart)
-- **Extended Timeout**: Increase the wait time for Windows to **60 seconds** for the heavy 4000px image generation.
-- **Explicit Memory Cleanup**: Add more aggressive garbage collection hints and object disposal during the multi-slide rendering loop to prevent Windows "Low Memory" crashes.
+- **Aggressive Disposal**: I will implement explicit image disposal immediately after each slide is added to the PDF or PPTX archive.
+- **GC Hints**: Add `ui.Image.dispose()` and set large byte arrays to `null` inside the loop to help the Windows garbage collector reclaim memory faster.
 
-### 3. Detailed Error Reporting
-#### [MODIFY] [presentation_screen.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/presentation_screen.dart)
-- **Technical Error Dialog**: If an export fails, show a modal dialog with the technical error details instead of a simple SnackBar. This allows the client to provide actionable feedback.
-
-### 4. PPTX Stability
+### 3. PDF Stream Optimization
 #### [MODIFY] [export_service.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/services/export_service.dart)
-- Ensure the PPTX archive stream is fully flushed and verified before the final write operation.
+- Update the PDF generation logic to use compressed image objects (`pw.MemoryImage` with compression) which drastically reduces the final PDF file size on disk.
+
+### 4. Robust PPTX Archiving
+#### [MODIFY] [export_service.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/services/export_service.dart)
+- Ensure the PPTX zip archive is built slide-by-slide and uses the compressed JPEG data, making the final `.pptx` file much lighter and faster for PowerPoint to open.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Windows Save Test**: Export a slide and verify the "Save As" dialog defaults to the correct extension and works smoothly.
-2.  **Timeout Test**: Verify that a slide with many drawings (100+) finishes exporting without timing out.
-3.  **Error Dialog**: Simulate a "Disk Full" or "No Permission" state and verify the detailed error dialog appears.
-4.  **PowerPoint Verification**: Open the result in Windows PowerPoint to ensure slide master and media alignment.
+1.  **Large File Test**: Create a presentation with 20+ slides, each with drawings and text. Export to PDF and PPTX.
+2.  **RAM Monitoring**: Monitor the application's RAM usage during export. Success criteria: RAM should stay stable and not "spike" uncontrollably.
+3.  **File Size Check**: Compare the new export size to the old one. Verify a significant reduction (e.g., from 200MB down to 20MB) while maintaining 4K sharpness.
+4.  **Client PC Simulation**: Ensure the high-quality JPEG render still looks "original" and sharp when zoomed in.

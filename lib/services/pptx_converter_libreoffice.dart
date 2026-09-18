@@ -21,35 +21,24 @@ class PptxConverterLibreOffice {
 
     onProgress?.call(0.05);
 
-    print('🔄 Starting fresh conversion (cache disabled)...');
-
     try {
-      // Clean old cache
       if (slideDir.existsSync()) {
-        print('🗑️ Deleting old cache...');
         slideDir.deleteSync(recursive: true);
       }
       slideDir.createSync(recursive: true);
 
       onProgress?.call(0.1);
 
-      // Find bundled tools
       final libreOfficePath = await _findLibreOffice();
       final pdftoppmPath = await _findPdfToPpm();
 
       if (libreOfficePath == null) {
         throw Exception('LibreOffice not found. Please reinstall the application.');
       }
-
       if (pdftoppmPath == null) {
         throw Exception('Poppler not found. Please reinstall the application.');
       }
 
-      print('🔧 Tools found:');
-      print('   LibreOffice: $libreOfficePath');
-      print('   pdftoppm: $pdftoppmPath');
-
-      // Step 1: Convert PPTX to PDF
       onProgress?.call(0.2);
       final pdfPath = await _convertPptxToPdf(
         pptxPath,
@@ -64,7 +53,6 @@ class PptxConverterLibreOffice {
 
       onProgress?.call(0.5);
 
-      // Step 2: Convert PDF to PNG using pdftoppm
       final images = await _convertPdfToImagesWithPoppler(
         pdfPath,
         slideDir,
@@ -72,19 +60,14 @@ class PptxConverterLibreOffice {
         onProgress,
       );
 
-      // Clean up PDF
       final pdfFile = File(pdfPath);
       if (pdfFile.existsSync()) {
         pdfFile.deleteSync();
-        print('🗑️ Deleted temporary PDF');
       }
 
       onProgress?.call(1.0);
-
-      print('✅ Successfully converted ${images.length} slides');
       return images;
     } catch (e) {
-      print('❌ Conversion failed: $e');
       onProgress?.call(1.0);
       rethrow;
     }
@@ -106,11 +89,6 @@ class PptxConverterLibreOffice {
       String libreOfficePath,
       void Function(double)? onProgress,
       ) async {
-    print('📄 Converting PPTX to PDF...');
-    print('   Input: $pptxPath');
-    print('   Output: ${outputDir.path}');
-
-    // Use Process.run for better completion detection
     final result = await Process.run(
       libreOfficePath,
       [
@@ -121,16 +99,12 @@ class PptxConverterLibreOffice {
       ],
     );
 
-    print('   Exit code: ${result.exitCode}');
-
     if (result.exitCode != 0) {
       final stderr = result.stderr?.toString() ?? '';
       throw Exception('PPTX to PDF conversion failed. Exit code: ${result.exitCode}\n$stderr');
     }
 
     onProgress?.call(0.4);
-
-    // Wait for PDF to be fully written
     await Future.delayed(Duration(seconds: 2));
 
     final pdfFiles = outputDir.listSync()
@@ -141,7 +115,6 @@ class PptxConverterLibreOffice {
       throw Exception('No PDF file generated');
     }
 
-    print('   PDF created: ${pdfFiles.first.path}');
     return pdfFiles.first.path;
   }
 
@@ -151,141 +124,112 @@ class PptxConverterLibreOffice {
       String pdftoppmPath,
       void Function(double)? onProgress,
       ) async {
-    try {
-      print('🖼️ Converting PDF to PNG...');
-      print('   Using pdftoppm: $pdftoppmPath');
+    final prefix = '${outputDir.path}/slide';
 
-      final prefix = '${outputDir.path}/slide';
+    final result = await Process.run(
+      pdftoppmPath,
+      ['-png', '-r', '150', pdfPath, prefix],
+    );
 
-      final result = await Process.run(
-        pdftoppmPath,
-        [
-          '-png',
-          '-r', '150',
-          pdfPath,
-          prefix,
-        ],
-      );
-
-      print('   Exit code: ${result.exitCode}');
-
-      if (result.exitCode != 0) {
-        final stderr = result.stderr?.toString() ?? '';
-        throw Exception('pdftoppm conversion failed. Exit code: ${result.exitCode}\n$stderr');
-      }
-
-      onProgress?.call(0.7);
-
-      // Wait for files to be written
-      await Future.delayed(Duration(milliseconds: 500));
-
-      final pngFiles = outputDir.listSync()
-          .where((f) => f.path.endsWith('.png') && f.path.contains('slide'))
-          .toList()
-        ..sort((a, b) => a.path.compareTo(b.path));
-
-      print('   Found ${pngFiles.length} PNG files');
-
-      if (pngFiles.isEmpty) {
-        throw Exception('No PNG files generated');
-      }
-
-      final images = <String>[];
-      for (int i = 0; i < pngFiles.length; i++) {
-        final newPath = '${outputDir.path}/slide_${i + 1}.png';
-
-        if (pngFiles[i].path != newPath) {
-          try {
-            File(pngFiles[i].path).renameSync(newPath);
-          } catch (e) {
-            print('   Error renaming, trying copy: $e');
-            File(pngFiles[i].path).copySync(newPath);
-          }
-        }
-
-        images.add(newPath);
-      }
-
-      onProgress?.call(0.9);
-
-      print('   Created ${images.length} images');
-      return images;
-    } catch (e) {
-      print('❌ PDF to image conversion failed: $e');
-      rethrow;
+    if (result.exitCode != 0) {
+      final stderr = result.stderr?.toString() ?? '';
+      throw Exception('pdftoppm conversion failed. Exit code: ${result.exitCode}\n$stderr');
     }
+
+    onProgress?.call(0.7);
+    await Future.delayed(Duration(milliseconds: 500));
+
+    final pngFiles = outputDir.listSync()
+        .where((f) => f.path.endsWith('.png') && f.path.contains('slide'))
+        .toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
+
+    if (pngFiles.isEmpty) {
+      throw Exception('No PNG files generated');
+    }
+
+    final images = <String>[];
+    for (int i = 0; i < pngFiles.length; i++) {
+      final newPath = '${outputDir.path}/slide_${i + 1}.png';
+      if (pngFiles[i].path != newPath) {
+        try {
+          File(pngFiles[i].path).renameSync(newPath);
+        } catch (e) {
+          File(pngFiles[i].path).copySync(newPath);
+        }
+      }
+      images.add(newPath);
+    }
+
+    onProgress?.call(0.9);
+    return images;
   }
 
   static Future<String?> _findLibreOffice() async {
     final executablePath = Platform.resolvedExecutable;
     final executableDir = File(executablePath).parent;
 
-    print('🔍 Searching for LibreOffice...');
-
-    final bundledPaths = [
-      // Windows - bundled
+    final paths = [
+      // Bundled - standard install (MSI admin install)
       '${executableDir.path}/tools/libreoffice/program/soffice.exe',
+      // Bundled - nested LibreOffice folder
       '${executableDir.path}/tools/LibreOffice/program/soffice.exe',
-      // Windows - system
+      // PortableApps structure
+      '${executableDir.path}/tools/libreoffice/App/libreoffice/program/soffice.exe',
+      '${executableDir.path}/tools/LibreOfficePortable/App/libreoffice/program/soffice.exe',
+      // System
       r'C:\Program Files\LibreOffice\program\soffice.exe',
       r'C:\Program Files (x86)\LibreOffice\program\soffice.exe',
-      // macOS - development
+      // macOS
       '/opt/homebrew/bin/soffice',
       '/Applications/LibreOffice.app/Contents/MacOS/soffice',
       '/usr/local/bin/soffice',
       '/usr/bin/soffice',
     ];
 
-    for (final path in bundledPaths) {
+    for (final path in paths) {
       if (File(path).existsSync()) {
-        print('✅ Found LibreOffice at: $path');
         return path;
       }
     }
 
-    // Search recursively in tools directory
+    // Recursive search
     try {
       final toolsDir = Directory('${executableDir.path}/tools');
       if (toolsDir.existsSync()) {
         final files = toolsDir.listSync(recursive: true);
         for (final file in files) {
           if (file is File && file.path.toLowerCase().endsWith('soffice.exe')) {
-            print('✅ Found LibreOffice recursively at: ${file.path}');
             return file.path;
           }
         }
       }
     } catch (e) {
-      print('Error searching: $e');
+      // Continue
     }
 
-    // Try which command (macOS/Linux)
+    // macOS/Linux which
     try {
       final result = await Process.run('which', ['soffice']);
       if (result.exitCode == 0 && result.stdout.toString().trim().isNotEmpty) {
-        final path = result.stdout.toString().trim();
-        print('✅ Found soffice via which: $path');
-        return path;
+        return result.stdout.toString().trim();
       }
     } catch (e) {
       // Continue
     }
 
-    // Try where command (Windows)
+    // Windows where
     if (Platform.isWindows) {
       try {
         final result = await Process.run('where', ['soffice']);
         if (result.exitCode == 0 && result.stdout.toString().trim().isNotEmpty) {
-          final path = result.stdout.toString().trim().split('\n').first;
-          print('✅ Found soffice via where: $path');
-          return path;
+          return result.stdout.toString().trim().split('\n').first;
         }
       } catch (e) {
         // Continue
       }
     }
 
-    print('⚠️ LibreOffice not found');
     return null;
   }
 
@@ -293,17 +237,12 @@ class PptxConverterLibreOffice {
     final executablePath = Platform.resolvedExecutable;
     final executableDir = File(executablePath).parent;
 
-    print('🔍 Searching for pdftoppm...');
-
     final knownPaths = [
-      // Windows - bundled
       '${executableDir.path}/tools/poppler/pdftoppm.exe',
       '${executableDir.path}/tools/poppler/bin/pdftoppm.exe',
       '${executableDir.path}/tools/poppler/Library/bin/pdftoppm.exe',
-      // Windows - system
       r'C:\Program Files\poppler\bin\pdftoppm.exe',
       r'C:\Program Files (x86)\poppler\bin\pdftoppm.exe',
-      // macOS - development
       '/opt/homebrew/bin/pdftoppm',
       '/usr/local/bin/pdftoppm',
       '/usr/bin/pdftoppm',
@@ -311,61 +250,49 @@ class PptxConverterLibreOffice {
 
     for (final path in knownPaths) {
       if (File(path).existsSync()) {
-        print('✅ Found pdftoppm at: $path');
         return path;
       }
     }
 
-    // Search recursively in tools directory
     try {
       final toolsDir = Directory('${executableDir.path}/tools');
       if (toolsDir.existsSync()) {
         final files = toolsDir.listSync(recursive: true);
         for (final file in files) {
           if (file is File && file.path.toLowerCase().endsWith('pdftoppm.exe')) {
-            print('✅ Found pdftoppm recursively at: ${file.path}');
             return file.path;
           }
         }
       }
     } catch (e) {
-      print('Error searching: $e');
+      // Continue
     }
 
-    // Try which command (macOS/Linux)
     try {
       final result = await Process.run('which', ['pdftoppm']);
       if (result.exitCode == 0 && result.stdout.toString().trim().isNotEmpty) {
-        final path = result.stdout.toString().trim();
-        print('✅ Found pdftoppm via which: $path');
-        return path;
+        return result.stdout.toString().trim();
       }
     } catch (e) {
       // Continue
     }
 
-    // Try where command (Windows)
     if (Platform.isWindows) {
       try {
         final result = await Process.run('where', ['pdftoppm']);
         if (result.exitCode == 0 && result.stdout.toString().trim().isNotEmpty) {
-          final path = result.stdout.toString().trim().split('\n').first;
-          print('✅ Found pdftoppm via where: $path');
-          return path;
+          return result.stdout.toString().trim().split('\n').first;
         }
       } catch (e) {
         // Continue
       }
     }
 
-    print('⚠️ pdftoppm not found');
     return null;
   }
 
   static Future<void> preloadPptx(String pptxPath) async {
-    print('🔄 Preloading PPTX...');
     await convertPptxToImages(pptxPath);
-    print('✅ PPTX preloaded');
   }
 
   static void clearAllCaches() {
@@ -373,7 +300,6 @@ class PptxConverterLibreOffice {
     final cacheDir = Directory('${tempDir.path}/pptx_cache');
     if (cacheDir.existsSync()) {
       cacheDir.deleteSync(recursive: true);
-      print('🗑️ Cleared all caches');
     }
   }
 }
