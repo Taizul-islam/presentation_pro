@@ -19,8 +19,6 @@ class ExportService {
     List<PresentationPage> pages, {
     Function(int current, int total)? onProgress,
   }) async {
-    print('!!! DEBUG: printPages entered !!!');
-    
     try {
       final pdf = pw.Document();
       final Map<String, pdfrx.PdfDocument> docCache = {};
@@ -33,16 +31,20 @@ class ExportService {
         
         if (imageBytes != null) {
           final double ratio = page.aspectRatio ?? 16 / 9;
-          // Standard A4 width is 595 points. 
-          // We use that as base and calculate height to maintain slide shape.
-          final double pageWidth = 842.0; // Widescreen landscape base
+          // Use high-density points for the PDF page format (standard widescreen)
+          final double pageWidth = 1280.0; 
           final double pageHeight = pageWidth / ratio;
 
           pdf.addPage(
             pw.Page(
               pageFormat: PdfPageFormat(pageWidth, pageHeight),
               margin: const pw.EdgeInsets.all(0),
-              build: (context) => pw.Center(child: pw.Image(pw.MemoryImage(imageBytes))),
+              build: (context) => pw.Center(
+                child: pw.Image(
+                  pw.MemoryImage(imageBytes),
+                  fit: pw.BoxFit.contain,
+                ),
+              ),
             ),
           );
         }
@@ -61,8 +63,8 @@ class ExportService {
         dynamicLayout: false,
       );
       
-    } catch (e, stack) {
-      print('DEBUG: ERROR in printPages: $e');
+    } catch (e) {
+      debugPrint('Error in printPages: $e');
     }
   }
 
@@ -85,14 +87,19 @@ class ExportService {
 
         if (imageBytes != null) {
           final double ratio = page.aspectRatio ?? 16 / 9;
-          final double pageWidth = 842.0;
+          final double pageWidth = 1280.0;
           final double pageHeight = pageWidth / ratio;
 
           pdf.addPage(
             pw.Page(
               pageFormat: PdfPageFormat(pageWidth, pageHeight),
               margin: const pw.EdgeInsets.all(0),
-              build: (context) => pw.Center(child: pw.Image(pw.MemoryImage(imageBytes))),
+              build: (context) => pw.Center(
+                child: pw.Image(
+                  pw.MemoryImage(imageBytes),
+                  fit: pw.BoxFit.contain,
+                ),
+              ),
             ),
           );
         }
@@ -130,16 +137,27 @@ class ExportService {
 
   static Future<String?> _getSavePath(String fileName) async {
     try {
+      // Ensure fileName is Windows-safe
+      final safeFileName = fileName.split(Platform.pathSeparator).last;
+      
       final result = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save file as',
-        fileName: fileName,
+        dialogTitle: 'Save Presentation As',
+        fileName: safeFileName,
         type: FileType.custom,
-        allowedExtensions: [fileName.split('.').last],
+        allowedExtensions: [safeFileName.split('.').last],
       );
-      return result;
+      
+      if (result != null) {
+        debugPrint('DEBUG: File picker returned path: $result');
+        return result;
+      }
+      return null;
     } catch (e) {
+      debugPrint('DEBUG: File picker failed, attempting fallback to Documents: $e');
       final directory = await getApplicationDocumentsDirectory();
-      return '${directory.path}/$fileName';
+      final fallbackPath = '${directory.path}${Platform.pathSeparator}$fileName';
+      debugPrint('DEBUG: Fallback path: $fallbackPath');
+      return fallbackPath;
     }
   }
 
@@ -147,24 +165,20 @@ class ExportService {
     PresentationPage page, {
     Map<String, pdfrx.PdfDocument>? docCache,
   }) async {
-    print('DEBUG: _renderPageToImage starting for page ${page.pageNumber}');
     try {
-      // 1. High Resolution Setup (4K base)
-      const double targetWidth = 3000.0;
+      // 1. Ultra-High Resolution Setup (4000px base)
+      const double targetWidth = 4000.0;
       final double ratio = page.aspectRatio ?? 16 / 9;
       final double targetHeight = targetWidth / ratio;
       
-      print('DEBUG: Target high-res dimensions: ${targetWidth.toInt()}x${targetHeight.toInt()}');
-
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
 
-      // 2. Background
+      // 2. Background Layer (Transparent/Solid color)
       final bgColor = page.backgroundColor ?? Colors.white;
       canvas.drawRect(Rect.fromLTWH(0, 0, targetWidth, targetHeight), Paint()..color = bgColor);
 
       if (page.contentPath != null && page.contentPath!.isNotEmpty) {
-        print('DEBUG: Processing background content...');
         ui.Image? bgImage;
         
         if (page.contentType == PageContentType.pdf && page.pdfPageIndex != null) {
@@ -178,6 +192,7 @@ class ExportService {
 
           if (doc != null) {
             final pdfPage = doc.pages[page.pdfPageIndex!];
+            // Render PDF at high resolution to avoid blurs
             final pdfImage = await pdfPage.render(
               fullWidth: targetWidth,
               fullHeight: targetHeight,
@@ -197,7 +212,7 @@ class ExportService {
         }
 
         if (bgImage != null) {
-          // Draw background with high quality filtering
+          // Draw with high-quality filter
           canvas.drawImageRect(
             bgImage,
             Rect.fromLTWH(0, 0, bgImage.width.toDouble(), bgImage.height.toDouble()),
@@ -208,17 +223,16 @@ class ExportService {
         }
       }
 
-      // 3. Drawing Strokes
-      print('DEBUG: Drawing ${page.strokes.length} strokes...');
-      // We use 1920 as the "standard" width for stroke thickness math
-      final double thicknessScale = targetWidth / 1920.0;
+      // 3. Drawing Layer (Normalized 0.0 - 1.0 coords to 4000px pixels)
+      // Reference standard is 1920.0 for stroke boldness
+      final double scaleFactor = targetWidth / 1920.0;
 
       for (final stroke in page.strokes) {
         if (stroke.points.length < 2) continue;
 
         final paint = Paint()
           ..color = stroke.color
-          ..strokeWidth = stroke.width * thicknessScale
+          ..strokeWidth = stroke.width * scaleFactor
           ..strokeCap = ui.StrokeCap.round
           ..strokeJoin = ui.StrokeJoin.round
           ..style = PaintingStyle.stroke
@@ -234,7 +248,6 @@ class ExportService {
         }
 
         final path = Path();
-        // Points are normalized (0.0 - 1.0)
         path.moveTo(stroke.points[0].dx * targetWidth, stroke.points[0].dy * targetHeight);
         for (int i = 1; i < stroke.points.length; i++) {
           path.lineTo(stroke.points[i].dx * targetWidth, stroke.points[i].dy * targetHeight);
@@ -242,16 +255,14 @@ class ExportService {
         canvas.drawPath(path, paint);
       }
 
-      // 4. Text Elements
-      print('DEBUG: Drawing ${page.texts.length} text elements...');
+      // 4. Text Layer
       for (final textElement in page.texts) {
         if (textElement.text.trim().isEmpty) continue;
 
         final textStyle = _getRenderTextStyle(textElement);
-        // Important: Use the same scale for text font and box width
         final textSpan = TextSpan(
           text: textElement.text,
-          style: textStyle.copyWith(fontSize: textElement.fontSize * thicknessScale),
+          style: textStyle.copyWith(fontSize: textElement.fontSize * scaleFactor),
         );
 
         final textPainter = TextPainter(
@@ -260,35 +271,28 @@ class ExportService {
           textDirection: TextDirection.ltr,
         );
 
-        textPainter.layout(maxWidth: textElement.width * thicknessScale);
+        // Add padding to prevent clipping of complex glyphs
+        textPainter.layout(maxWidth: (textElement.width * scaleFactor) + 20);
         textPainter.paint(
           canvas,
           Offset(textElement.position.dx * targetWidth, textElement.position.dy * targetHeight),
         );
       }
 
-      print('DEBUG: Ending recording...');
       final picture = recorder.endRecording();
-      
-      print('DEBUG: Converting picture to image (3000x${targetHeight.toInt()})...');
       final finalImage = await picture.toImage(targetWidth.toInt(), targetHeight.toInt());
       
-      print('DEBUG: Converting image to byte data (PNG)...');
       final byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          print('DEBUG: toByteData TIMEOUT after 30s');
-          return null;
-        },
+        const Duration(seconds: 60), // High resolution needs time
+        onTimeout: () => null,
       );
       
       finalImage.dispose();
 
       if (byteData == null) return null;
-      print('DEBUG: _renderPageToImage complete');
       return byteData.buffer.asUint8List();
-    } catch (e, stack) {
-      print('DEBUG: Error in _renderPageToImage: $e');
+    } catch (e) {
+      debugPrint('Error in _renderPageToImage: $e');
       return null;
     }
   }
@@ -317,7 +321,14 @@ class ExportService {
     Function(int current, int total)? onProgress,
   }) async {
     final archive = Archive();
-    final Map<String, pdfrx.PdfDocument> docCache = {};
+    
+    // 1. Calculate Slide Size in EMUs (914400 EMUs per inch)
+    // Standard Height: 7.5 inches = 6858000 EMUs
+    // Width: Scale based on aspect ratio
+    final double baseHeightEmu = 6858000;
+    final double firstPageRatio = pages.isNotEmpty ? (pages[0].aspectRatio ?? 16/9) : 16/9;
+    final int slideWidthEmu = (baseHeightEmu * firstPageRatio).toInt();
+    final int slideHeightEmu = baseHeightEmu.toInt();
 
     final contentTypes = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -353,7 +364,7 @@ class ExportService {
   <p:sldIdLst>
     $slideIds
   </p:sldIdLst>
-  <p:sldSz cx="9144000" cy="6858000"/>
+  <p:sldSz cx="$slideWidthEmu" cy="$slideHeightEmu"/>
   <p:notesSz cx="6858000" cy="9144000"/>
 </p:presentation>''';
 
@@ -437,8 +448,10 @@ class ExportService {
     final slideLayoutBytes = utf8.encode(slideLayoutXml);
     archive.addFile(ArchiveFile('ppt/slideLayouts/slideLayout1.xml', slideLayoutBytes.length, slideLayoutBytes));
 
+    final Map<String, pdfrx.PdfDocument> docCache = {};
+
     for (int i = 0; i < pages.length; i++) {
-      final imageBytes = await _renderPageToImage(pages[i]);
+      final imageBytes = await _renderPageToImage(pages[i], docCache: docCache);
 
       if (imageBytes != null) {
         archive.addFile(ArchiveFile('ppt/media/slide${i + 1}.png', imageBytes.length, imageBytes));
@@ -475,7 +488,7 @@ class ExportService {
         <p:spPr>
           <a:xfrm>
             <a:off x="0" y="0"/>
-            <a:ext cx="9144000" cy="6858000"/>
+            <a:ext cx="$slideWidthEmu" cy="$slideHeightEmu"/>
           </a:xfrm>
           <a:prstGeom prst="rect">
             <a:avLst/>
@@ -500,6 +513,10 @@ class ExportService {
         final slideRelsBytes = utf8.encode(slideRels);
         archive.addFile(ArchiveFile('ppt/slides/_rels/slide${i + 1}.xml.rels', slideRelsBytes.length, slideRelsBytes));
       }
+    }
+
+    for (final doc in docCache.values) {
+      await doc.dispose();
     }
 
     final zipEncoder = ZipEncoder();

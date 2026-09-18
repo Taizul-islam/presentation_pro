@@ -45,8 +45,8 @@ class DrawingStroke {
       if (p.dy < top) top = p.dy;
       if (p.dy > bottom) bottom = p.dy;
     }
-    // Add stroke width to the bounding box
-    return Rect.fromLTRB(left, top, right, bottom).inflate(width / 2);
+    // Note: points are normalized (0-1).
+    return Rect.fromLTRB(left, top, right, bottom);
   }
 
   DrawingStroke translate(Offset delta) {
@@ -187,6 +187,13 @@ class DrawingText {
   DrawingText translate(Offset delta) {
     if (isLocked) return this;
     return copyWith(position: position + delta);
+  }
+
+  DrawingText flip(bool horizontal, Offset center) {
+    if (isLocked) return this;
+    double dx = horizontal ? center.dx - (position.dx - center.dx) : position.dx;
+    double dy = horizontal ? position.dy : center.dy - (position.dy - center.dy);
+    return copyWith(position: Offset(dx, dy));
   }
 }
 

@@ -1,4 +1,6 @@
-- `[ ]` Remove corrupted/duplicated code in `export_service.dart`
-- `[ ]` Fix `Paint` initialization in `export_service.dart`
-- `[ ]` Run `analyze_file` to verify 0 errors
-- `[ ]` Verify application build
+- `[ ]` Implement robust Windows path and error handling for export
+    - `[ ]` Update `ExportService._getSavePath` for better Windows support
+    - `[ ]` Implement detailed error logging in `ExportService`
+    - `[ ]` Increase timeouts and add memory cleanup in `_renderPageToImage`
+- `[ ]` Create a detailed error dialog in `PresentationScreen`
+- `[ ]` Verify stability and error reporting

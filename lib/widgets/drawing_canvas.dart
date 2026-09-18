@@ -53,6 +53,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   Offset? _dragStart;
   Offset? _currentDragOffset;
   bool _isMoving = false;
+  Size? _lastCanvasSize;
 
   // Scaling state
   int? _activeHandleIndex; // 0: TL, 1: TR, 2: BL, 3: BR
@@ -75,6 +76,11 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     if (widget.strokes.isEmpty && oldWidget.strokes.isNotEmpty) {
       _clearSelection();
     }
+
+    // Refresh selection rect if strokes changed during selection mode
+    if (widget.selectedTool == DrawingTool.selector && widget.strokes != oldWidget.strokes) {
+      _refreshSelectionRect();
+    }
   }
 
   void _clearSelection() {
@@ -96,6 +102,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+        _lastCanvasSize = canvasSize; // Store for normalization later
         
         return MouseRegion(
           onHover: (event) {
@@ -159,7 +166,8 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
                 scalePivot: _scalePivot,
                 rotationAngle: _rotationAngle,
                 rotationCenter: _rotationCenter,
-                canvasSize: canvasSize, // Pass canvas size for scaling
+                canvasSize: canvasSize,
+                isSelectionLocked: _isSelectionLocked(),
               ),
             ),
           ),
@@ -227,6 +235,9 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   }
 
   void _handleSelectionUpdate(Offset position) {
+    // Block interaction if selection contains locked items
+    if (_isSelectionLocked()) return;
+
     if (_isRotating && _rotationCenter != null) {
       final currentVector = position - _rotationCenter!;
       final startVector = _dragStart! - _rotationCenter!;
@@ -266,9 +277,17 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   }
 
   void _handleSelectionEnd() {
+    if (_lastCanvasSize == null) return;
+    final size = _lastCanvasSize!;
+
     if (_isRotating) {
       if (_rotationAngle != 0.0) {
-        widget.onStrokesRotated?.call(_selectedIndices, _rotationAngle, _rotationCenter!);
+        // Normalize rotation center
+        final normalizedCenter = Offset(
+          _rotationCenter!.dx / size.width,
+          _rotationCenter!.dy / size.height,
+        );
+        widget.onStrokesRotated?.call(_selectedIndices, _rotationAngle, normalizedCenter);
       }
       setState(() {
         _isRotating = false;
@@ -280,7 +299,12 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       _notifySelectionChanged();
     } else if (_activeHandleIndex != null) {
       if (_scaleX != 1.0 || _scaleY != 1.0) {
-        widget.onStrokesScaled?.call(_selectedIndices, _scaleX, _scaleY, _scalePivot!);
+        // Normalize scale pivot
+        final normalizedPivot = Offset(
+          _scalePivot!.dx / size.width,
+          _scalePivot!.dy / size.height,
+        );
+        widget.onStrokesScaled?.call(_selectedIndices, _scaleX, _scaleY, normalizedPivot);
       }
       setState(() {
         if (_selectionRect != null) {
@@ -304,7 +328,12 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       _notifySelectionChanged();
     } else if (_isMoving) {
       if (_currentDragOffset != null && _currentDragOffset != Offset.zero) {
-        widget.onStrokesMoved?.call(_selectedIndices, _currentDragOffset!);
+        // Normalize drag offset
+        final normalizedOffset = Offset(
+          _currentDragOffset!.dx / size.width,
+          _currentDragOffset!.dy / size.height,
+        );
+        widget.onStrokesMoved?.call(_selectedIndices, normalizedOffset);
       }
       setState(() {
         if (_selectionRect != null && _currentDragOffset != null) {
@@ -331,27 +360,47 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     });
   }
 
+  bool _isSelectionLocked() {
+    if (_selectedIndices.isEmpty) return false;
+    return _selectedIndices.any((idx) => idx < widget.strokes.length && widget.strokes[idx].isLocked);
+  }
+
   void _refreshSelectionRect() {
-    if (_selectedIndices.isEmpty) {
+    if (_selectedIndices.isEmpty || _lastCanvasSize == null) {
       _selectionRect = null;
       return;
     }
     
+    final size = _lastCanvasSize!;
     Rect? newRect;
     for (final index in _selectedIndices) {
       if (index < widget.strokes.length) {
-        final box = widget.strokes[index].boundingBox;
-        newRect = newRect == null ? box : newRect.expandToInclude(box);
+        final normBox = widget.strokes[index].boundingBox;
+        final pixelBox = Rect.fromLTRB(
+          normBox.left * size.width,
+          normBox.top * size.height,
+          normBox.right * size.width,
+          normBox.bottom * size.height,
+        );
+        newRect = newRect == null ? pixelBox : newRect.expandToInclude(pixelBox);
       }
     }
     _selectionRect = newRect;
   }
 
   void _updateSelectedIndices() {
-    if (_selectionRect == null) return;
+    if (_selectionRect == null || _lastCanvasSize == null) return;
+    final size = _lastCanvasSize!;
     List<int> indices = [];
     for (int i = 0; i < widget.strokes.length; i++) {
-      if (_selectionRect!.overlaps(widget.strokes[i].boundingBox)) {
+      final normBox = widget.strokes[i].boundingBox;
+      final pixelBox = Rect.fromLTRB(
+        normBox.left * size.width,
+        normBox.top * size.height,
+        normBox.right * size.width,
+        normBox.bottom * size.height,
+      );
+      if (_selectionRect!.overlaps(pixelBox)) {
         indices.add(i);
       }
     }
@@ -377,6 +426,7 @@ class DrawingPainter extends CustomPainter {
   final double rotationAngle;
   final Offset? rotationCenter;
   final Size canvasSize;
+  final bool isSelectionLocked;
 
   DrawingPainter({
     required this.strokes,
@@ -395,6 +445,7 @@ class DrawingPainter extends CustomPainter {
     this.rotationAngle = 0.0,
     this.rotationCenter,
     required this.canvasSize,
+    this.isSelectionLocked = false,
   });
 
   @override
@@ -478,6 +529,32 @@ class DrawingPainter extends CustomPainter {
     // 2. Draw light background
     canvas.drawRect(rect, Paint()..color = Colors.blue.withOpacity(0.02)..style = PaintingStyle.fill);
 
+    if (isSelectionLocked) {
+      // Draw lock icon in top-left
+      final lockCenter = rect.topLeft;
+      final knobPaint = Paint()..color = Colors.white..style = PaintingStyle.fill;
+      final knobBorderPaint = Paint()..color = Colors.red.shade400..style = PaintingStyle.stroke..strokeWidth = 1.5;
+      
+      canvas.drawCircle(lockCenter, 12, knobPaint);
+      canvas.drawCircle(lockCenter, 12, knobBorderPaint);
+
+      final lockIconPainter = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(Icons.lock.codePoint),
+          style: TextStyle(
+            fontSize: 16,
+            fontFamily: Icons.lock.fontFamily,
+            package: Icons.lock.fontPackage,
+            color: Colors.red.shade700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      
+      lockIconPainter.paint(canvas, lockCenter - Offset(lockIconPainter.width/2, lockIconPainter.height/2));
+      return; // Stop drawing other handles
+    }
+
     // 3. Draw knobs (circular white knobs on sides)
     final knobPaint = Paint()
       ..color = Colors.white
@@ -540,10 +617,12 @@ class DrawingPainter extends CustomPainter {
   }
 
   DrawingStroke _scaleStrokeToPixels(DrawingStroke stroke, Size size) {
+    // Scale width relative to a 1920px standard for consistent boldness
+    final double widthScale = size.width / 1920.0;
     return DrawingStroke(
       points: stroke.points.map((p) => Offset(p.dx * size.width, p.dy * size.height)).toList(),
       color: stroke.color,
-      width: stroke.width,
+      width: stroke.width * widthScale,
       tool: stroke.tool,
       isLocked: stroke.isLocked,
     );

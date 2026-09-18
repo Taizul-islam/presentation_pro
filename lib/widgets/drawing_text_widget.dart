@@ -83,6 +83,16 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
       top: widget.element.position.dy - padding,
       child: GestureDetector(
         onTap: widget.onTap,
+        onPanStart: (details) {
+          if (!widget.element.isLocked) {
+            widget.onInteractionStart?.call();
+          }
+        },
+        onPanUpdate: (details) {
+          if (!widget.element.isLocked) {
+            widget.onPositionChanged(details.delta);
+          }
+        },
         behavior: HitTestBehavior.opaque,
         child: Container(
           width: widget.element.width + (padding * 2),
@@ -103,6 +113,7 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                   child: TextField(
                     controller: _controller,
                     focusNode: _focusNode,
+                    enabled: !widget.element.isLocked,
                     maxLines: null,
                     style: _getTextStyle(),
                     textAlign: widget.element.alignment,
@@ -115,7 +126,21 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                   ),
                 ),
               ),
-              if (widget.isSelected) ...[
+              if (widget.isSelected && widget.element.isLocked)
+                Positioned(
+                  left: padding - 12,
+                  top: padding - 12,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.red.shade400, width: 1.5),
+                    ),
+                    child: Icon(Icons.lock, size: 14, color: Colors.red.shade700),
+                  ),
+                ),
+              if (widget.isSelected && !widget.element.isLocked) ...[
                 // Side handles - Placed relative to the edges of the box
                 // Left circle
                 Positioned(

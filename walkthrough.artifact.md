@@ -1,28 +1,30 @@
-# Walkthrough - Precision High-Res Export Fix
+# Walkthrough - Robust Windows Desktop Export & Stability
 
-I have completely overhauled the export engine to eliminate blurriness and ensure that all your drawings and text are perfectly preserved, matching your screen preview exactly.
+I have implemented a series of robust fixes to ensure the export functionality (PDF and PPTX) is stable and reliable, specifically for the Windows desktop version of your application.
 
 ## Key Fixes
 
-### 1. Dynamic PDF Page Sizing
-- **The Issue**: Previously, the app forced wide 16:9 slides onto vertical A4 paper, which chopped off content in the corners and caused distortion.
-- **The Fix**: The PDF export now automatically detects the **actual aspect ratio** of your slide. If you are using a widescreen slide, the PDF page will be widescreen. This ensures that every corner of your drawing is visible and nothing is cut off.
+### 1. Robust Windows Path Handling
+- **The Issue**: On Windows, file paths use backslashes (`\`), whereas macOS uses forward slashes (`/`). Incorrect path handling was likely causing the export to fail silently on your client's machine.
+- **The Fix**: I have updated [export_service.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/services/export_service.dart) to use `Platform.pathSeparator` everywhere. This ensures the app speaks the correct "language" for any operating system it's running on.
 
-### 2. High-Fidelity 4K Rendering
-- **4K Crystal Clarity**: I've boosted the internal rendering engine to produce high-density images (3000 pixels wide). This makes your exports significantly sharper than before.
-- **Improved Filtering**: Enabled high-quality anti-aliasing for both background images and your drawing strokes, removing the "blocky" or blurry look you saw on your Mac Mini.
+### 2. High-Performance Hardware Support
+- **Increased Timeouts**: Converting complex slides into 4K images can be a heavy task for some hardware. I have increased the processing timeout from 5 seconds to **60 seconds** to give slower touch-screen PCs plenty of time to finish.
+- **Improved Save Dialog**: Refined the Windows file-save dialog logic to be more strictly compliant with Windows standards, preventing the dialog from failing to open.
 
-### 3. Smart Stroke & Text Alignment
-- **Resolution-Independent Math**: Overhauled the coordinate system in [export_service.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/services/export_service.dart). All drawings and text are now scaled using a "Virtual 1920x1080 Space."
-- **Proportional Boldness**: Fixed the line thickness math so that strokes in the export look exactly as thick and bold as they do on your presentation screen.
-- **Pixel-Perfect Text**: Text is now rendered using the same high-resolution scaling factor, ensuring it stays perfectly aligned with your drawings.
+### 3. Professional Technical Error Dialog
+- **Beyond SnackBars**: If an export fails, the app now shows a full **Technical Error Dialog** instead of a small message.
+- **Actionable Feedback**: This dialog displays the exact technical error code (e.g., "Access Denied" or "Disk Full"). This allows your client to send you a screenshot so you can see exactly why their specific computer is blocking the file.
 
-## Technical Details
-- **Coordinate Normalization**: Implemented a percentage-based mapping bridge between the UI canvas and the background render canvas.
-- **BoxFit Logic**: Switched the background rendering to a strict "Aspect-Ratio Aware" pipeline, preventing any unwanted stretching or clipping.
+### 4. Reliable PPTX Archiving
+- **File Integrity**: I've ensured that the PowerPoint zip archive is properly closed and verified before saving it to disk, which prevents "corrupted file" errors when opening the result in Microsoft PowerPoint.
+
+## Technical Implementation Details
+- **Normalized Coordinate Math**: Maintained the high-resolution scaling logic for all drawings and text, ensuring pixel-perfect alignment in the final output.
+- **Exception Catching**: Strengthened the `try-catch` blocks in [presentation_screen.dart](file:///Users/miurin/Desktop/painting_tool_co_rasel/painting-tool/lib/presentation_screen.dart) to capture and report all filesystem-level failures.
 
 > [!TIP]
-> Try exporting your most complex slide to PDF now. You will see that the text is sharp and the drawings at the very edges of the screen are fully preserved!
+> Tell your client that if an export fails, they should now see a **Detailed Error Dialog**. Ask them to send you a screenshot of that dialog so we can troubleshoot their specific PC settings!
 
 > [!IMPORTANT]
-> The PDF files will look different in your viewer because they no longer have large white margins—they now take up the full page shape of your original slide.
+> The app now intelligently defaults to saving exports in the user's **Documents** folder if the custom file picker is blocked by Windows security settings.

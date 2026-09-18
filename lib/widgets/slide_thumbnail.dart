@@ -5,12 +5,14 @@ import '../models/drawing_stroke.dart';
 
 class SlideThumbnail extends StatelessWidget {
   final PresentationPage page;
+  final DrawingStroke? currentStroke; // New: show live drawing
   final bool isSelected;
   final VoidCallback onTap;
 
   const SlideThumbnail({
     Key? key,
     required this.page,
+    this.currentStroke,
     required this.isSelected,
     required this.onTap,
   }) : super(key: key);
@@ -71,26 +73,29 @@ class SlideThumbnail extends StatelessWidget {
   }
 
   Widget _buildThumbnailPreview() {
-    // Check for blank slide with drawings - show drawing preview with background color
-    if ((page.contentPath == null || page.contentPath!.isEmpty) && page.strokes.isNotEmpty) {
-      final bgColor = page.backgroundColor ?? Colors.white;
-      return Stack(
-        children: [
-          // Background color
-          Container(color: bgColor),
-          // Drawing overlay
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _ThumbnailPainter(strokes: page.strokes),
+    final hasContent = page.strokes.isNotEmpty || page.texts.isNotEmpty || currentStroke != null;
+    return Stack(
+      children: [
+        _buildBackground(hasContent),
+        Positioned.fill(
+          child: CustomPaint(
+            painter: _ThumbnailPainter(
+              strokes: page.strokes,
+              currentStroke: currentStroke,
+              texts: page.texts,
             ),
           ),
-        ],
-      );
-    }
+        ),
+      ],
+    );
+  }
 
-    // Check for blank slide without drawings - show background color
+  Widget _buildBackground(bool hasContent) {
+    // Check for blank slide
     if (page.contentPath == null || page.contentPath!.isEmpty) {
       final bgColor = page.backgroundColor ?? Colors.white;
+      if (hasContent) return Container(color: bgColor);
+
       return Container(
         color: bgColor,
         child: Center(
@@ -102,16 +107,16 @@ class SlideThumbnail extends StatelessWidget {
                 size: 24,
                 color: bgColor.computeLuminance() > 0.5
                     ? Colors.grey.shade300
-                    : Colors.white.withOpacity(0.5),
+                    : Colors.white.withValues(alpha: 0.5),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Blank',
                 style: TextStyle(
                   fontSize: 8,
                   color: bgColor.computeLuminance() > 0.5
                       ? Colors.grey.shade400
-                      : Colors.white.withOpacity(0.7),
+                      : Colors.white.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -209,62 +214,93 @@ class SlideThumbnail extends StatelessWidget {
   }
 }
 
-// Custom painter for thumbnail drawings - handles eraser correctly
+// Custom painter for thumbnail drawings - handles eraser and texts correctly
 class _ThumbnailPainter extends CustomPainter {
   final List<DrawingStroke> strokes;
+  final DrawingStroke? currentStroke;
+  final List<DrawingText> texts;
 
-  _ThumbnailPainter({required this.strokes});
+  _ThumbnailPainter({
+    required this.strokes,
+    this.currentStroke,
+    required this.texts,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (strokes.isEmpty) return;
+    // 1. Draw Strokes (Normalized math)
+    if (strokes.isNotEmpty || currentStroke != null) {
+      canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
 
-    // Scale factor to fit 100px height thumbnail
-    final scaleFactor = size.height / 600; // Assuming slide height ~600px
-
-    // Save canvas state for eraser
-    canvas.saveLayer(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint(),
-    );
-
-    for (final stroke in strokes) {
-      if (stroke.points.length < 2) continue;
-
-      final paint = Paint()
-        ..strokeWidth = (stroke.width * scaleFactor).clamp(0.5, 5.0)
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..style = PaintingStyle.stroke
-        ..isAntiAlias = true;
-
-      // Handle eraser differently - use BlendMode.clear
-      if (stroke.tool == DrawingTool.eraser) {
-        paint.color = Colors.white;
-        paint.blendMode = BlendMode.clear;
-      } else {
-        paint.color = stroke.color;
+      for (final stroke in strokes) {
+        _drawSingleStroke(canvas, stroke, size);
       }
 
-      final path = Path();
-      path.moveTo(
-        stroke.points[0].dx * scaleFactor,
-        stroke.points[0].dy * scaleFactor,
-      );
-
-      for (int i = 1; i < stroke.points.length; i++) {
-        path.lineTo(
-          stroke.points[i].dx * scaleFactor,
-          stroke.points[i].dy * scaleFactor,
-        );
+      if (currentStroke != null) {
+        _drawSingleStroke(canvas, currentStroke!, size);
       }
-
-      canvas.drawPath(path, paint);
+      
+      canvas.restore();
     }
 
-    canvas.restore();
+    // 2. Draw Texts (Normalized math)
+    for (final textElement in texts) {
+      if (textElement.text.trim().isEmpty) continue;
+
+      final textSpan = TextSpan(
+        text: textElement.text,
+        style: TextStyle(
+          color: textElement.color,
+          fontSize: (textElement.fontSize * (size.width / 1920)).clamp(1.0, 10.0),
+          fontWeight: textElement.isBold ? FontWeight.bold : FontWeight.normal,
+        ),
+      );
+
+      final textPainter = TextPainter(
+        text: textSpan,
+        textAlign: textElement.alignment,
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+        ellipsis: '...',
+      );
+
+      textPainter.layout(maxWidth: textElement.width * (size.width / 1920));
+      textPainter.paint(
+        canvas,
+        Offset(textElement.position.dx * size.width, textElement.position.dy * size.height),
+      );
+    }
+  }
+
+  void _drawSingleStroke(Canvas canvas, DrawingStroke stroke, Size size) {
+    if (stroke.points.length < 2) return;
+
+    final paint = Paint()
+      ..strokeWidth = (stroke.width * (size.width / 1920)).clamp(0.5, 3.0)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    if (stroke.tool == DrawingTool.eraser) {
+      paint.blendMode = BlendMode.clear;
+    } else {
+      paint.color = stroke.color;
+    }
+
+    if (stroke.tool == DrawingTool.highlighter) {
+      paint.color = stroke.color.withOpacity(0.3);
+      paint.strokeWidth *= 2;
+    }
+
+    final path = Path();
+    path.moveTo(stroke.points[0].dx * size.width, stroke.points[0].dy * size.height);
+    for (int i = 1; i < stroke.points.length; i++) {
+      path.lineTo(stroke.points[i].dx * size.width, stroke.points[i].dy * size.height);
+    }
+    canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _ThumbnailPainter oldDelegate) => true;
 }

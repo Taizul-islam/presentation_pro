@@ -33,6 +33,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   bool _isModeSubMenuVisible = false;
   bool _isContextSubMenuVisible = false;
   bool _isThicknessSubMenuVisible = false;
+  bool _isColorSubMenuVisible = false;
   bool _isTextFormattingVisible = false;
   bool _isAdjustingThickness = false;
   AppMode _currentMode = AppMode.preparation;
@@ -40,6 +41,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   List<int> _activeSelectedIndices = [];
   int? _activeTextIndex;
   double _currentSelectionThickness = 4.0;
+  String _sourceFileName = 'Presentation';
   
   Color _selectedColor = Colors.red;
   double _strokeWidth = 4.0;
@@ -233,7 +235,11 @@ class _PresentationScreenState extends State<PresentationScreen>
   }
 
   Future<void> _loadPdf(String path) async {
-    setState(() => _loadingMessage = 'Loading PDF...');
+    setState(() {
+      _loadingMessage = 'Loading PDF...';
+      // Extract filename without extension
+      _sourceFileName = path.split(Platform.pathSeparator).last.split('.').first;
+    });
     final document = await PdfDocument.openFile(path);
     _currentPdfDocument?.dispose();
     _currentPdfDocument = document;
@@ -261,6 +267,9 @@ class _PresentationScreenState extends State<PresentationScreen>
   }
 
   Future<void> _loadImages(List<String> paths) async {
+    setState(() {
+      _sourceFileName = paths.first.split(Platform.pathSeparator).last.split('.').first;
+    });
     final List<PresentationPage> newPages = [];
     for (int i = 0; i < paths.length; i++) {
       final bytes = await File(paths[i]).readAsBytes();
@@ -287,7 +296,10 @@ class _PresentationScreenState extends State<PresentationScreen>
   }
 
   Future<void> _loadPptx(String path) async {
-    setState(() => _loadingMessage = 'Converting PPTX...');
+    setState(() {
+      _loadingMessage = 'Converting PPTX...';
+      _sourceFileName = path.split(Platform.pathSeparator).last.split('.').first;
+    });
     try {
       final imagePaths = await PptxConverterLibreOffice.convertPptxToImages(
         path,
@@ -338,7 +350,7 @@ class _PresentationScreenState extends State<PresentationScreen>
     try {
       final path = await ExportService.exportAsPdf(
         _pages, 
-        'Presentation_Export',
+        _generateExportFileName(),
         onProgress: (current, total) {
           setState(() {
             _loadingMessage = 'Rendering Page $current of $total...';
@@ -349,10 +361,10 @@ class _PresentationScreenState extends State<PresentationScreen>
       if (path != null) {
         _showSnackBar('PDF Exported to: ${path.split(Platform.pathSeparator).last}', Colors.green, Icons.check_circle);
       } else {
-        _showSnackBar('Export cancelled or failed. Check permissions.', Colors.orange, Icons.warning);
+        _showSnackBar('Export cancelled.', Colors.orange, Icons.warning);
       }
     } catch (e) {
-      _showSnackBar('Error: ${e.toString()}', Colors.red, Icons.error);
+      _showErrorDialog('PDF Export Failed', e);
     } finally {
       setState(() => _isLoadingDocument = false);
     }
@@ -367,7 +379,7 @@ class _PresentationScreenState extends State<PresentationScreen>
     try {
       final path = await ExportService.exportAsPptx(
         _pages, 
-        'Presentation_Export',
+        _generateExportFileName(),
         onProgress: (current, total) {
           setState(() {
             _loadingMessage = 'Processing Slide $current of $total...';
@@ -378,10 +390,10 @@ class _PresentationScreenState extends State<PresentationScreen>
       if (path != null) {
         _showSnackBar('PPTX Exported to: ${path.split(Platform.pathSeparator).last}', Colors.green, Icons.check_circle);
       } else {
-        _showSnackBar('Export failed. Make sure the file isn\'t open elsewhere.', Colors.orange, Icons.warning);
+        _showSnackBar('Export failed.', Colors.orange, Icons.warning);
       }
     } catch (e) {
-      _showSnackBar('Error: ${e.toString()}', Colors.red, Icons.error);
+      _showErrorDialog('PPTX Export Failed', e);
     } finally {
       setState(() => _isLoadingDocument = false);
     }
@@ -469,14 +481,14 @@ class _PresentationScreenState extends State<PresentationScreen>
           if (_isDrawingMode && _isMenuVisible)
             Positioned(
               left: 30,
-              bottom: 80,
+              bottom: 60,
               child: _buildVerticalMenu(),
             ),
 
           if (_isDrawingMode)
             Positioned(
               left: 0,
-              bottom: 20,
+              bottom: 0,
               child: _buildBottomLeftMenu(),
             ),
 
@@ -485,7 +497,7 @@ class _PresentationScreenState extends State<PresentationScreen>
             Positioned(
               left: 0,
               right: 0,
-              bottom: 80,
+              bottom: 60,
               child: Center(
                 child: SizedBox(
                   width: 300,
@@ -511,14 +523,14 @@ class _PresentationScreenState extends State<PresentationScreen>
             Positioned(
               left: 0,
               right: 0,
-              bottom: 20,
+              bottom: 0,
               child: _buildFloatingToolbar(),
             ),
 
           if (_isDrawingMode)
             Positioned(
               right: 0,
-              bottom: 20,
+              bottom: 0,
               child: _buildSlideNavigation(),
             ),
 
@@ -550,6 +562,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   Widget _buildContentPage() {
     return PageView.builder(
       controller: _pageController,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: _pages.length,
       onPageChanged: (index) {
         setState(() {
@@ -577,46 +590,51 @@ class _PresentationScreenState extends State<PresentationScreen>
           return Stack(
             children: [
               Positioned.fill(child: _buildPageContent(page, hasDrawing: hasDrawing)),
-              DrawingCanvas(
-                strokes: page.strokes,
-                currentStroke: isCurrentPage ? _currentStroke : null,
-                selectedColor: _selectedColor,
-                strokeWidth: _strokeWidth,
-                eraserWidth: _eraserWidth,
-                selectedTool: _selectedTool,
-                hoverPosition: isCurrentPage ? _hoverPosition : null,
-                onStrokeStart: _startStroke,
-                onStrokeUpdate: _updateStroke,
-                onStrokeEnd: _endStroke,
-                onHoverUpdate: (pos) => setState(() => _hoverPosition = pos),
-                onStrokesMoved: _handleStrokesMoved,
-                onStrokesScaled: _handleStrokesScaled,
-                onStrokesRotated: _handleStrokesRotated,
-                onSelectionChanged: (rect, indices) {
-                  _cleanupEmptyTexts();
-                  setState(() {
-                    _activeSelectionRect = rect;
-                    _activeSelectedIndices = indices;
-                    _isContextSubMenuVisible = false;
-                    _isThicknessSubMenuVisible = false;
-                    
-                    if (indices.isNotEmpty) {
-                      _currentSelectionThickness = _pages[_currentPageIndex].strokes[indices.first].width;
-                    }
-                  });
-                },
-                onTextCreated: _handleTextCreated,
-                onInteraction: () {
-                  _cleanupEmptyTexts();
-                  if (_isMenuVisible || _isModeSubMenuVisible || _isContextSubMenuVisible || _isThicknessSubMenuVisible) {
+              Positioned.fill(
+                child: DrawingCanvas(
+                  strokes: page.strokes,
+                  currentStroke: isCurrentPage ? _currentStroke : null,
+                  selectedColor: _selectedColor,
+                  strokeWidth: _strokeWidth,
+                  eraserWidth: _eraserWidth,
+                  selectedTool: _selectedTool,
+                  hoverPosition: isCurrentPage ? _hoverPosition : null,
+                  onStrokeStart: _startStroke,
+                  onStrokeUpdate: _updateStroke,
+                  onStrokeEnd: _endStroke,
+                  onHoverUpdate: (pos) => setState(() => _hoverPosition = pos),
+                  onStrokesMoved: _handleStrokesMoved,
+                  onStrokesScaled: _handleStrokesScaled,
+                  onStrokesRotated: _handleStrokesRotated,
+                  onSelectionChanged: (rect, indices) {
+                    _cleanupEmptyTexts();
                     setState(() {
-                      _isMenuVisible = false;
-                      _isModeSubMenuVisible = false;
+                      _activeSelectionRect = rect;
+                      _activeSelectedIndices = indices;
+                      _activeTextIndex = null; // Exclusive selection
                       _isContextSubMenuVisible = false;
                       _isThicknessSubMenuVisible = false;
+                      _isColorSubMenuVisible = false;
+                      
+                      if (indices.isNotEmpty) {
+                        _currentSelectionThickness = _pages[_currentPageIndex].strokes[indices.first].width;
+                      }
                     });
-                  }
-                },
+                  },
+                  onTextCreated: _handleTextCreated,
+                  onInteraction: () {
+                    _cleanupEmptyTexts();
+                    if (_isMenuVisible || _isModeSubMenuVisible || _isContextSubMenuVisible || _isThicknessSubMenuVisible || _isColorSubMenuVisible) {
+                      setState(() {
+                        _isMenuVisible = false;
+                        _isModeSubMenuVisible = false;
+                        _isContextSubMenuVisible = false;
+                        _isThicknessSubMenuVisible = false;
+                        _isColorSubMenuVisible = false;
+                      });
+                    }
+                  },
+                ),
               ),
               ...page.texts.asMap().entries.map((entry) {
                 final idx = entry.key;
@@ -639,7 +657,16 @@ class _PresentationScreenState extends State<PresentationScreen>
                   onInteractionStart: () => _saveToHistory(),
                   onTap: () => setState(() {
                     _activeTextIndex = idx;
+                    _activeSelectedIndices = []; // Exclusive selection
                     _isTextFormattingVisible = true;
+                    // Provide a selection rect for the contextual menu
+                    _activeSelectionRect = Rect.fromLTWH(
+                      text.position.dx * slideWidth, 
+                      text.position.dy * slideHeight, 
+                      text.width * (slideWidth / 1920.0), 
+                      50 // Estimated height for menu positioning
+                    );
+                    _selectedTool = DrawingTool.selector; // Switch to selector tool to show menu
                   }),
                 );
               }),
@@ -649,6 +676,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                   _buildExpandedContextMenu(_activeSelectionRect!, slideWidth, slideHeight),
                 if (_isContextSubMenuVisible && _isThicknessSubMenuVisible)
                   _buildThicknessSubMenu(_activeSelectionRect!, slideWidth, slideHeight),
+                if (_isContextSubMenuVisible && _isColorSubMenuVisible)
+                  _buildColorSubMenu(_activeSelectionRect!, slideWidth, slideHeight),
               ],
               if (isCurrentPage && 
                   _activeTextIndex != null && 
@@ -677,7 +706,7 @@ class _PresentationScreenState extends State<PresentationScreen>
 
         return Center(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 90),
             child: AspectRatio(
               aspectRatio: page.aspectRatio ?? 16 / 9,
               child: Container(
@@ -745,11 +774,15 @@ class _PresentationScreenState extends State<PresentationScreen>
       child: ListView.builder(
         controller: _sidebarScrollController,
         itemCount: _pages.length,
-        itemBuilder: (context, index) => SlideThumbnail(
-          page: _pages[index],
-          isSelected: _currentPageIndex == index,
-          onTap: () => _goToPage(index),
-        ),
+        itemBuilder: (context, index) {
+          final isCurrent = _currentPageIndex == index;
+          return SlideThumbnail(
+            page: _pages[index],
+            currentStroke: isCurrent ? _currentStroke : null,
+            isSelected: isCurrent,
+            onTap: () => _goToPage(index),
+          );
+        },
       ),
     );
   }
@@ -884,18 +917,47 @@ class _PresentationScreenState extends State<PresentationScreen>
     });
   }
 
-  void _duplicateSelectedStrokes() {
-    if (_activeSelectedIndices.isEmpty) return;
+  void _duplicateSelectedElements() {
+    if (_activeSelectedIndices.isEmpty && _activeTextIndex == null) return;
+    
     setState(() {
       _saveToHistory();
+      final page = _pages[_currentPageIndex];
+      final List<DrawingStroke> updatedStrokes = List<DrawingStroke>.from(page.strokes);
+      final List<DrawingText> updatedTexts = List<DrawingText>.from(page.texts);
+      
+      // We use a small percentage for the offset (20px / 1920px width standard)
+      final Offset normalizedOffset = const Offset(0.01, 0.02);
+      
+      List<int> newStrokesSelection = [];
+      int? newTextSelection;
 
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
-      final offset = const Offset(20, 20);
+      // 1. Duplicate Strokes
       for (final index in _activeSelectedIndices) {
-        updatedStrokes.add(_pages[_currentPageIndex].strokes[index].translate(offset));
+        if (index < page.strokes.length) {
+          final clone = page.strokes[index].translate(normalizedOffset);
+          updatedStrokes.add(clone);
+          newStrokesSelection.add(updatedStrokes.length - 1);
+        }
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      
+      // 2. Duplicate Text
+      if (_activeTextIndex != null && _activeTextIndex! < page.texts.length) {
+        final clone = page.texts[_activeTextIndex!].translate(normalizedOffset);
+        updatedTexts.add(clone);
+        newTextSelection = updatedTexts.length - 1;
+      }
+      
+      _pages[_currentPageIndex] = page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
       _pages = List.from(_pages);
+      
+      // 3. Auto-select the clones
+      _activeSelectedIndices = newStrokesSelection;
+      _activeTextIndex = newTextSelection;
+      
+      // If we duplicated something, we should probably update the selection rect
+      // but DrawingCanvas will do that on the next build if it's strokes.
+      // For text, we've updated _activeTextIndex.
     });
   }
 
@@ -1124,10 +1186,25 @@ class _PresentationScreenState extends State<PresentationScreen>
     const double toolbarWidth = 45.0;
     const double toolbarHeight = 225.0;
     const double expandedMenuWidth = 220.0;
+    const double subMenuWidth = 240.0;
+    const double horizontalPadding = 10.0;
+    const double verticalPadding = 10.0;
 
-    bool hasSpaceOnRight = (rect.right + 10 + toolbarWidth + expandedMenuWidth + 20) < slideWidth;
-    double left = hasSpaceOnRight ? (rect.right + 10) : (rect.left - 10 - toolbarWidth);
-    double top = rect.top.clamp(10.0, (slideHeight - toolbarHeight - 20).clamp(10.0, slideHeight));
+    // 1. Determine Horizontal Side for the whole chain
+    // We check if there's enough room for EVERYTHING (Toolbar + More Menu + Color Picker)
+    double totalChainWidth = toolbarWidth + horizontalPadding + expandedMenuWidth + horizontalPadding + subMenuWidth;
+    bool hasSpaceOnRight = (rect.right + totalChainWidth + 20) < slideWidth;
+    
+    double left;
+    if (hasSpaceOnRight) {
+      left = rect.right + horizontalPadding;
+    } else {
+      // Flip to left, but ensure it doesn't go off the left edge
+      left = (rect.left - horizontalPadding - toolbarWidth).clamp(horizontalPadding, slideWidth - toolbarWidth);
+    }
+
+    // 2. Vertical Clamping
+    double top = rect.top.clamp(verticalPadding, (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
 
     return Positioned(
       left: left,
@@ -1149,11 +1226,14 @@ class _PresentationScreenState extends State<PresentationScreen>
               _buildContextAction(Icons.delete_outline, _deleteSelectedStrokes, Colors.red),
               _buildContextAction(Icons.palette_outlined, _showDrawingColorPicker, Colors.indigo),
               _buildContextAction(Icons.layers_outlined, () {}, Colors.grey.shade700),
-              _buildContextAction(Icons.copy_outlined, _duplicateSelectedStrokes, Colors.grey.shade700),
+              _buildContextAction(Icons.copy_outlined, _duplicateSelectedElements, Colors.grey.shade700),
               _buildContextAction(Icons.menu, () {
                 setState(() {
                   _isContextSubMenuVisible = !_isContextSubMenuVisible;
-                  if (!_isContextSubMenuVisible) _isThicknessSubMenuVisible = false;
+                  if (!_isContextSubMenuVisible) {
+                    _isThicknessSubMenuVisible = false;
+                    _isColorSubMenuVisible = false;
+                  }
                 });
               }, Colors.grey.shade700),
             ],
@@ -1168,14 +1248,25 @@ class _PresentationScreenState extends State<PresentationScreen>
     const double toolbarHeight = 225.0;
     const double expandedMenuWidth = 220.0;
     const double maxMenuHeight = 350.0;
+    const double subMenuWidth = 240.0;
+    const double horizontalPadding = 10.0;
+    const double verticalPadding = 10.0;
 
-    bool hasSpaceOnRight = (rect.right + 10 + toolbarWidth + expandedMenuWidth + 20) < slideWidth;
-    double toolbarTop = rect.top.clamp(10.0, (slideHeight - toolbarHeight - 20).clamp(10.0, slideHeight));
-    bool spaceBelow = (slideHeight - toolbarTop) > (maxMenuHeight + 20);
+    // Must match toolbar logic
+    double totalChainWidth = toolbarWidth + horizontalPadding + expandedMenuWidth + horizontalPadding + subMenuWidth;
+    bool hasSpaceOnRight = (rect.right + totalChainWidth + 20) < slideWidth;
+    
+    double toolbarLeft = hasSpaceOnRight ? (rect.right + horizontalPadding) : (rect.left - horizontalPadding - toolbarWidth);
+    double toolbarTop = rect.top.clamp(verticalPadding, (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
 
-    double left = hasSpaceOnRight ? (rect.right + 10 + toolbarWidth + 10) : (rect.left - 10 - toolbarWidth - 10 - expandedMenuWidth);
+    double left = hasSpaceOnRight 
+        ? (toolbarLeft + toolbarWidth + horizontalPadding) 
+        : (toolbarLeft - horizontalPadding - expandedMenuWidth);
+    
+    // Vertical Lifting Logic
+    bool spaceBelow = (slideHeight - toolbarTop) > (maxMenuHeight + verticalPadding);
     double? top = spaceBelow ? toolbarTop : null;
-    double? bottom = spaceBelow ? null : (slideHeight - (toolbarTop + toolbarHeight)); // Align with toolbar bottom
+    double? bottom = spaceBelow ? null : (slideHeight - (toolbarTop + toolbarHeight)).clamp(verticalPadding, slideHeight);
 
     return Positioned(
       left: left,
@@ -1203,20 +1294,36 @@ class _PresentationScreenState extends State<PresentationScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildExpandedMenuItem(Icons.lock_outline, 'Lock', _toggleLockSelected),
+                    _buildExpandedMenuItem(
+                      _isSelectionLocked() ? Icons.lock : Icons.lock_open, 
+                      _isSelectionLocked() ? 'Unlock' : 'Lock', 
+                      _toggleLockSelected
+                    ),
                     _buildExpandedMenuItem(
                       Icons.line_weight,
                       'Line thickness',
-                      () => setState(() => _isThicknessSubMenuVisible = !_isThicknessSubMenuVisible),
+                      () => setState(() {
+                        _isThicknessSubMenuVisible = !_isThicknessSubMenuVisible;
+                        if (_isThicknessSubMenuVisible) _isColorSubMenuVisible = false;
+                      }),
                       hasSubmenu: true,
                       isActive: _isThicknessSubMenuVisible,
                     ),
-                    _buildExpandedMenuItem(Icons.format_color_fill, 'Fill color', () {}, hasSubmenu: true),
+                    _buildExpandedMenuItem(
+                      Icons.format_color_fill,
+                      'Fill color',
+                      () => setState(() {
+                        _isColorSubMenuVisible = !_isColorSubMenuVisible;
+                        if (_isColorSubMenuVisible) _isThicknessSubMenuVisible = false;
+                      }),
+                      hasSubmenu: true,
+                      isActive: _isColorSubMenuVisible,
+                    ),
                     _buildExpandedMenuItem(Icons.add_to_photos_outlined, 'Add to resource library', () {}),
                     _buildExpandedMenuItem(Icons.link, 'Edit hyperlink', () {}),
-                    _buildExpandedMenuItem(Icons.compare_arrows, 'Mirror', _mirrorSelected),
-                    _buildExpandedMenuItem(Icons.unfold_more, 'Flip', _flipSelected),
-                    _buildExpandedMenuItem(Icons.copy_all, 'Copy', _duplicateSelectedStrokes),
+                    _buildExpandedMenuItem(Icons.compare_arrows, 'Mirror', () => _mirrorSelected(slideWidth, slideHeight)),
+                    _buildExpandedMenuItem(Icons.unfold_more, 'Flip', () => _flipSelected(slideWidth, slideHeight)),
+                    _buildExpandedMenuItem(Icons.copy_all, 'Copy', _duplicateSelectedElements),
                     _buildExpandedMenuItem(Icons.content_cut, 'Shear', () {}),
                   ],
                 ),
@@ -1233,18 +1340,23 @@ class _PresentationScreenState extends State<PresentationScreen>
     const double toolbarHeight = 225.0;
     const double expandedMenuWidth = 220.0;
     const double thicknessSubMenuWidth = 180.0;
+    const double thicknessSubMenuHeight = 50.0;
+    const double subMenuWidth = 240.0; // Max width for color menu
+    const double horizontalPadding = 10.0;
+    const double verticalPadding = 10.0;
 
-    bool hasSpaceOnRight = (rect.right + 10 + toolbarWidth + expandedMenuWidth + 20) < slideWidth;
-    double toolbarTop = rect.top.clamp(10.0, (slideHeight - toolbarHeight - 20).clamp(10.0, slideHeight));
+    double totalChainWidth = toolbarWidth + horizontalPadding + expandedMenuWidth + horizontalPadding + subMenuWidth;
+    bool hasSpaceOnRight = (rect.right + totalChainWidth + 20) < slideWidth;
+    
+    double toolbarLeft = hasSpaceOnRight ? (rect.right + horizontalPadding) : (rect.left - horizontalPadding - toolbarWidth);
+    double toolbarTop = rect.top.clamp(verticalPadding, (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
 
-    // Horizontal position: outside the expanded menu
     double left = hasSpaceOnRight 
-        ? (rect.right + 10 + toolbarWidth + 10 + expandedMenuWidth + 5)
-        : (rect.left - 10 - toolbarWidth - 10 - expandedMenuWidth - 5 - thicknessSubMenuWidth);
+        ? (toolbarLeft + toolbarWidth + horizontalPadding + expandedMenuWidth + 5)
+        : (toolbarLeft - horizontalPadding - expandedMenuWidth - 5 - thicknessSubMenuWidth);
 
-    // Vertical position: align with the "Line thickness" item in the context menu
-    // The items are ~45px high, and it's the 2nd item.
-    double top = toolbarTop + 45.0;
+    // Dynamic Vertical Clamping
+    double top = (toolbarTop + 45.0).clamp(verticalPadding, slideHeight - thicknessSubMenuHeight - verticalPadding);
 
     return Positioned(
       left: left,
@@ -1254,6 +1366,7 @@ class _PresentationScreenState extends State<PresentationScreen>
         behavior: HitTestBehavior.opaque,
         child: Container(
           width: thicknessSubMenuWidth,
+          height: thicknessSubMenuHeight,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -1331,43 +1444,99 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
+  bool _isSelectionLocked() {
+    final page = _pages[_currentPageIndex];
+    if (_activeTextIndex != null && _activeTextIndex! < page.texts.length) {
+      return page.texts[_activeTextIndex!].isLocked;
+    }
+    if (_activeSelectedIndices.isNotEmpty) {
+      // If any selected stroke is locked, consider the selection locked
+      return _activeSelectedIndices.any((idx) => idx < page.strokes.length && page.strokes[idx].isLocked);
+    }
+    return false;
+  }
+
   void _toggleLockSelected() {
-    if (_activeSelectedIndices.isEmpty) return;
+    if (_activeSelectedIndices.isEmpty && _activeTextIndex == null) return;
+    
+    final bool currentlyLocked = _isSelectionLocked();
+    
     setState(() {
       _saveToHistory();
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final page = _pages[_currentPageIndex];
+      
+      // Toggle Strokes
+      final updatedStrokes = List<DrawingStroke>.from(page.strokes);
       for (final index in _activeSelectedIndices) {
-        updatedStrokes[index] = updatedStrokes[index].copyWith(isLocked: !updatedStrokes[index].isLocked);
+        if (index < updatedStrokes.length) {
+          updatedStrokes[index] = updatedStrokes[index].copyWith(isLocked: !currentlyLocked);
+        }
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      
+      // Toggle Text
+      final updatedTexts = List<DrawingText>.from(page.texts);
+      if (_activeTextIndex != null && _activeTextIndex! < updatedTexts.length) {
+        updatedTexts[_activeTextIndex!] = updatedTexts[_activeTextIndex!].copyWith(isLocked: !currentlyLocked);
+      }
+      
+      _pages[_currentPageIndex] = page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
 
-  void _mirrorSelected() {
-    if (_activeSelectedIndices.isEmpty || _activeSelectionRect == null) return;
+  void _mirrorSelected(double slideWidth, double slideHeight) {
+    if ((_activeSelectedIndices.isEmpty && _activeTextIndex == null) || _activeSelectionRect == null) return;
     setState(() {
       _saveToHistory();
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
-      final center = _activeSelectionRect!.center;
+      final page = _pages[_currentPageIndex];
+      
+      // Normalize center for the flip math
+      final pixelCenter = _activeSelectionRect!.center;
+      final normalizedCenter = Offset(pixelCenter.dx / slideWidth, pixelCenter.dy / slideHeight);
+      
+      // Mirror Strokes
+      final updatedStrokes = List<DrawingStroke>.from(page.strokes);
       for (final index in _activeSelectedIndices) {
-        updatedStrokes[index] = updatedStrokes[index].flip(true, center);
+        if (index < updatedStrokes.length) {
+          updatedStrokes[index] = updatedStrokes[index].flip(true, normalizedCenter);
+        }
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      
+      // Mirror Text
+      final updatedTexts = List<DrawingText>.from(page.texts);
+      if (_activeTextIndex != null && _activeTextIndex! < updatedTexts.length) {
+        updatedTexts[_activeTextIndex!] = updatedTexts[_activeTextIndex!].flip(true, normalizedCenter);
+      }
+      
+      _pages[_currentPageIndex] = page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
 
-  void _flipSelected() {
-    if (_activeSelectedIndices.isEmpty || _activeSelectionRect == null) return;
+  void _flipSelected(double slideWidth, double slideHeight) {
+    if ((_activeSelectedIndices.isEmpty && _activeTextIndex == null) || _activeSelectionRect == null) return;
     setState(() {
       _saveToHistory();
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
-      final center = _activeSelectionRect!.center;
+      final page = _pages[_currentPageIndex];
+      
+      final pixelCenter = _activeSelectionRect!.center;
+      final normalizedCenter = Offset(pixelCenter.dx / slideWidth, pixelCenter.dy / slideHeight);
+
+      // Flip Strokes
+      final updatedStrokes = List<DrawingStroke>.from(page.strokes);
       for (final index in _activeSelectedIndices) {
-        updatedStrokes[index] = updatedStrokes[index].flip(false, center);
+        if (index < updatedStrokes.length) {
+          updatedStrokes[index] = updatedStrokes[index].flip(false, normalizedCenter);
+        }
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      
+      // Flip Text
+      final updatedTexts = List<DrawingText>.from(page.texts);
+      if (_activeTextIndex != null && _activeTextIndex! < updatedTexts.length) {
+        updatedTexts[_activeTextIndex!] = updatedTexts[_activeTextIndex!].flip(false, normalizedCenter);
+      }
+      
+      _pages[_currentPageIndex] = page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
@@ -1443,6 +1612,84 @@ class _PresentationScreenState extends State<PresentationScreen>
       _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
       _pages = List.from(_pages);
     });
+  }
+
+  void _updateSelectedStrokesColor(Color color) {
+    if (_activeSelectedIndices.isEmpty) return;
+    setState(() {
+      _saveToHistory();
+      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      for (final index in _activeSelectedIndices) {
+        updatedStrokes[index] = updatedStrokes[index].copyWith(color: color);
+      }
+      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages = List.from(_pages);
+    });
+  }
+
+  Widget _buildColorSubMenu(Rect rect, double slideWidth, double slideHeight) {
+    const double toolbarWidth = 45.0;
+    const double toolbarHeight = 225.0;
+    const double expandedMenuWidth = 220.0;
+    const double colorSubMenuWidth = 240.0;
+    const double colorSubMenuHeight = 90.0;
+    const double subMenuWidth = 240.0;
+    const double horizontalPadding = 10.0;
+    const double verticalPadding = 10.0;
+
+    double totalChainWidth = toolbarWidth + horizontalPadding + expandedMenuWidth + horizontalPadding + subMenuWidth;
+    bool hasSpaceOnRight = (rect.right + totalChainWidth + 20) < slideWidth;
+    
+    double toolbarLeft = hasSpaceOnRight ? (rect.right + horizontalPadding) : (rect.left - horizontalPadding - toolbarWidth);
+    double toolbarTop = rect.top.clamp(verticalPadding, (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
+
+    double left = hasSpaceOnRight 
+        ? (toolbarLeft + toolbarWidth + horizontalPadding + expandedMenuWidth + 5)
+        : (toolbarLeft - horizontalPadding - expandedMenuWidth - 5 - colorSubMenuWidth);
+
+    // Dynamic Vertical Clamping
+    double top = (toolbarTop + 90.0).clamp(verticalPadding, slideHeight - colorSubMenuHeight - verticalPadding);
+
+    final List<Color> colors = [
+      Colors.red, Colors.blue, Colors.green, Colors.black, 
+      Colors.orange, Colors.purple, Colors.pink, Colors.brown
+    ];
+
+    return Positioned(
+      left: left,
+      top: top,
+      child: GestureDetector(
+        onTap: () {},
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: colorSubMenuWidth,
+          height: colorSubMenuHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: colors.map((color) => GestureDetector(
+              onTap: () => _updateSelectedStrokesColor(color),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+              ),
+            )).toList(),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildContextAction(IconData icon, VoidCallback onTap, Color color) {
@@ -1618,6 +1865,50 @@ class _PresentationScreenState extends State<PresentationScreen>
       content: Row(children: [Icon(icon, color: Colors.white), const SizedBox(width: 8), Text(message)]),
       backgroundColor: color,
     ));
+  }
+
+  void _showErrorDialog(String title, dynamic error) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red),
+            const SizedBox(width: 10),
+            Text(title),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('The operation failed with the following technical error:'),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  error.toString(),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text('Please verify you have permission to write to the selected folder and that no other application is using the file.'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showBackgroundColorPicker() {
@@ -1897,5 +2188,11 @@ class _PresentationScreenState extends State<PresentationScreen>
         ),
       ),
     );
+  }
+
+  String _generateExportFileName() {
+    final now = DateTime.now();
+    final timestamp = "${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}";
+    return "${_sourceFileName}_$timestamp";
   }
 }
