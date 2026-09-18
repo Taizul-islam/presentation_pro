@@ -31,25 +31,49 @@ jobs:
       - name: Build Windows EXE
         run: flutter build windows --release
 
-      - name: Download LibreOffice MSI
-        shell: powershell
+      - name: Install LibreOffice via winget
+        shell: pwsh
         run: |
-          $url = "https://download.documentfoundation.org/libreoffice/stable/7.6.5/win/x86_64/LibreOffice_7.6.5_Win_x64.msi"
-          Invoke-WebRequest -Uri $url -OutFile "libreoffice.msi"
+          winget install --id TheDocumentFoundation.LibreOffice -e --accept-package-agreements --accept-source-agreements
 
-      - name: Extract LibreOffice (Administrative Install)
-        shell: cmd
+      - name: Find and Copy LibreOffice
+        shell: pwsh
         run: |
-          msiexec /a libreoffice.msi TARGETDIR="%CD%\build\windows\x64\runner\Release\tools\libreoffice" /qn
+          $buildDir = "build\windows\x64\runner\Release"
+          $loDir = "$buildDir\tools\libreoffice"
+          New-Item -ItemType Directory -Path $loDir -Force
+          
+          # Find LibreOffice installation
+          $possiblePaths = @(
+            "C:\Program Files\LibreOffice",
+            "C:\Program Files (x86)\LibreOffice"
+          )
+          
+          $found = $false
+          foreach ($path in $possiblePaths) {
+            if (Test-Path "$path\program\soffice.exe") {
+              Write-Host "Found LibreOffice at: $path"
+              Copy-Item -Path "$path\*" -Destination $loDir -Recurse -Force
+              $found = $true
+              break
+            }
+          }
+          
+          if (-not $found) {
+            Write-Host "ERROR: LibreOffice not found after winget install"
+            exit 1
+          }
+          
+          Write-Host "LibreOffice copied to: $loDir"
 
       - name: Download Poppler
-        shell: powershell
+        shell: pwsh
         run: |
           $url = "https://github.com/oschwartz10612/poppler-windows/releases/download/v24.08.0-0/Release-24.08.0-0.zip"
           Invoke-WebRequest -Uri $url -OutFile "poppler.zip"
 
       - name: Extract Poppler
-        shell: powershell
+        shell: pwsh
         run: |
           Expand-Archive -Path "poppler.zip" -DestinationPath "poppler_extracted" -Force
           $popplerDir = Get-ChildItem "poppler_extracted" -Directory | Select-Object -First 1
@@ -59,7 +83,7 @@ jobs:
           Copy-Item -Path "$($binDir.FullName)\*" -Destination $destDir -Recurse -Force
 
       - name: Copy pdfium.dll
-        shell: powershell
+        shell: pwsh
         run: |
           $buildDir = "build\windows\x64\runner\Release"
           if (-not (Test-Path "$buildDir\pdfium.dll")) {
@@ -70,7 +94,7 @@ jobs:
           }
 
       - name: Verify files
-        shell: powershell
+        shell: pwsh
         run: |
           $buildDir = "build\windows\x64\runner\Release"
           if (-not (Test-Path "$buildDir\mobile.exe")) { Write-Host "FAIL: mobile.exe"; exit 1 }
@@ -85,7 +109,7 @@ jobs:
           Write-Host "All files verified."
 
       - name: Create ZIP
-        shell: powershell
+        shell: pwsh
         run: |
           Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "PresentationPro_Portable.zip"
 
