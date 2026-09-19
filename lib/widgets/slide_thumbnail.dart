@@ -5,9 +5,10 @@ import '../models/drawing_stroke.dart';
 
 class SlideThumbnail extends StatelessWidget {
   final PresentationPage page;
-  final DrawingStroke? currentStroke; // New: show live drawing
+  final DrawingStroke? currentStroke;
   final bool isSelected;
   final VoidCallback onTap;
+  final PdfDocument? pdfDocument;
 
   const SlideThumbnail({
     Key? key,
@@ -15,6 +16,7 @@ class SlideThumbnail extends StatelessWidget {
     this.currentStroke,
     required this.isSelected,
     required this.onTap,
+    this.pdfDocument,
   }) : super(key: key);
 
   @override
@@ -54,7 +56,7 @@ class SlideThumbnail extends StatelessWidget {
                           color: Colors.indigo.withOpacity(0.2),
                           blurRadius: 4,
                           spreadRadius: 1,
-                        )
+                        ),
                       ]
                           : null,
                     ),
@@ -73,7 +75,9 @@ class SlideThumbnail extends StatelessWidget {
   }
 
   Widget _buildThumbnailPreview() {
-    final hasContent = page.strokes.isNotEmpty || page.texts.isNotEmpty || currentStroke != null;
+    final hasContent = page.strokes.isNotEmpty ||
+        page.texts.isNotEmpty ||
+        currentStroke != null;
     return Stack(
       children: [
         _buildBackground(hasContent),
@@ -91,7 +95,7 @@ class SlideThumbnail extends StatelessWidget {
   }
 
   Widget _buildBackground(bool hasContent) {
-    // Check for blank slide
+    // Blank slide
     if (page.contentPath == null || page.contentPath!.isEmpty) {
       final bgColor = page.backgroundColor ?? Colors.white;
       if (hasContent) return Container(color: bgColor);
@@ -138,7 +142,8 @@ class SlideThumbnail extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.broken_image, color: Colors.red.shade300, size: 24),
+                    Icon(Icons.broken_image,
+                        color: Colors.red.shade300, size: 24),
                     const SizedBox(height: 4),
                     const Text(
                       'Load Error',
@@ -168,33 +173,32 @@ class SlideThumbnail extends StatelessWidget {
             },
           ),
         );
+
       case PageContentType.pdf:
-        return PdfDocumentViewBuilder.file(
-          page.contentPath!,
-          loadingBuilder: (context) => const Center(
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+      // Use the already-loaded PdfDocument from the parent screen.
+      // Do NOT open a new instance here, or the thumbnail will hang.
+        if (pdfDocument == null) {
+          return Container(
+            color: Colors.grey.shade100,
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ),
+          );
+        }
+
+        return Container(
+          color: Colors.white,
+          child: PdfPageView(
+            document: pdfDocument!,
+            pageNumber: (page.pdfPageIndex ?? 0) + 1,
+            maximumDpi: 100,
           ),
-          builder: (context, document) {
-            if (document == null) {
-              return const Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              );
-            }
-            return PdfPageView(
-              document: document,
-              pageNumber: (page.pdfPageIndex ?? 0) + 1,
-              maximumDpi: 100,
-            );
-          },
         );
+
       case PageContentType.placeholder:
       default:
         final bgColor = page.backgroundColor ?? Colors.white;
@@ -228,7 +232,6 @@ class _ThumbnailPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw Strokes (Normalized math)
     if (strokes.isNotEmpty || currentStroke != null) {
       canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
 
@@ -239,11 +242,10 @@ class _ThumbnailPainter extends CustomPainter {
       if (currentStroke != null) {
         _drawSingleStroke(canvas, currentStroke!, size);
       }
-      
+
       canvas.restore();
     }
 
-    // 2. Draw Texts (Normalized math)
     for (final textElement in texts) {
       if (textElement.text.trim().isEmpty) continue;
 
@@ -251,7 +253,8 @@ class _ThumbnailPainter extends CustomPainter {
         text: textElement.text,
         style: TextStyle(
           color: textElement.color,
-          fontSize: (textElement.fontSize * (size.width / 1920)).clamp(1.0, 10.0),
+          fontSize:
+          (textElement.fontSize * (size.width / 1920)).clamp(1.0, 10.0),
           fontWeight: textElement.isBold ? FontWeight.bold : FontWeight.normal,
         ),
       );
@@ -267,7 +270,8 @@ class _ThumbnailPainter extends CustomPainter {
       textPainter.layout(maxWidth: textElement.width * (size.width / 1920));
       textPainter.paint(
         canvas,
-        Offset(textElement.position.dx * size.width, textElement.position.dy * size.height),
+        Offset(textElement.position.dx * size.width,
+            textElement.position.dy * size.height),
       );
     }
   }
@@ -294,9 +298,11 @@ class _ThumbnailPainter extends CustomPainter {
     }
 
     final path = Path();
-    path.moveTo(stroke.points[0].dx * size.width, stroke.points[0].dy * size.height);
+    path.moveTo(
+        stroke.points[0].dx * size.width, stroke.points[0].dy * size.height);
     for (int i = 1; i < stroke.points.length; i++) {
-      path.lineTo(stroke.points[i].dx * size.width, stroke.points[i].dy * size.height);
+      path.lineTo(stroke.points[i].dx * size.width,
+          stroke.points[i].dy * size.height);
     }
     canvas.drawPath(path, paint);
   }

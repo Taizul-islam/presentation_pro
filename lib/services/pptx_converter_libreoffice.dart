@@ -118,6 +118,9 @@ class PptxConverterLibreOffice {
     return pdfFiles.first.path;
   }
 
+  /// Converts PDF to JPEG images at 100 DPI.
+  /// JPEG at 100 DPI is 5-10x smaller than PNG at 150 DPI while still
+  /// looking sharp on any screen.
   static Future<List<String>> _convertPdfToImagesWithPoppler(
       String pdfPath,
       Directory outputDir,
@@ -126,9 +129,10 @@ class PptxConverterLibreOffice {
       ) async {
     final prefix = '${outputDir.path}/slide';
 
+    // CHANGED: -jpeg instead of -png, 100 DPI instead of 150 DPI
     final result = await Process.run(
       pdftoppmPath,
-      ['-png', '-r', '150', pdfPath, prefix],
+      ['-jpeg', '-r', '100', pdfPath, prefix],
     );
 
     if (result.exitCode != 0) {
@@ -139,26 +143,31 @@ class PptxConverterLibreOffice {
     onProgress?.call(0.7);
     await Future.delayed(Duration(milliseconds: 500));
 
-    final pngFiles = outputDir.listSync()
-        .where((f) => f.path.endsWith('.png') && f.path.contains('slide'))
+    final jpegFiles = outputDir.listSync()
+        .where((f) => f.path.endsWith('.jpg') && f.path.contains('slide'))
         .toList()
       ..sort((a, b) => a.path.compareTo(b.path));
 
-    if (pngFiles.isEmpty) {
-      throw Exception('No PNG files generated');
+    if (jpegFiles.isEmpty) {
+      throw Exception('No JPEG files generated');
     }
 
     final images = <String>[];
-    for (int i = 0; i < pngFiles.length; i++) {
-      final newPath = '${outputDir.path}/slide_${i + 1}.png';
-      if (pngFiles[i].path != newPath) {
+    for (int i = 0; i < jpegFiles.length; i++) {
+      final newPath = '${outputDir.path}/slide_${i + 1}.jpg';
+      if (jpegFiles[i].path != newPath) {
         try {
-          File(pngFiles[i].path).renameSync(newPath);
+          File(jpegFiles[i].path).renameSync(newPath);
         } catch (e) {
-          File(pngFiles[i].path).copySync(newPath);
+          File(jpegFiles[i].path).copySync(newPath);
         }
       }
       images.add(newPath);
+
+      // Report progress periodically
+      if (i % 10 == 0) {
+        onProgress?.call(0.7 + (0.2 * i / jpegFiles.length));
+      }
     }
 
     onProgress?.call(0.9);
@@ -170,17 +179,12 @@ class PptxConverterLibreOffice {
     final executableDir = File(executablePath).parent;
 
     final paths = [
-      // Bundled - standard install (MSI admin install)
       '${executableDir.path}/tools/libreoffice/program/soffice.exe',
-      // Bundled - nested LibreOffice folder
       '${executableDir.path}/tools/LibreOffice/program/soffice.exe',
-      // PortableApps structure
       '${executableDir.path}/tools/libreoffice/App/libreoffice/program/soffice.exe',
       '${executableDir.path}/tools/LibreOfficePortable/App/libreoffice/program/soffice.exe',
-      // System
       r'C:\Program Files\LibreOffice\program\soffice.exe',
       r'C:\Program Files (x86)\LibreOffice\program\soffice.exe',
-      // macOS
       '/opt/homebrew/bin/soffice',
       '/Applications/LibreOffice.app/Contents/MacOS/soffice',
       '/usr/local/bin/soffice',
@@ -193,7 +197,6 @@ class PptxConverterLibreOffice {
       }
     }
 
-    // Recursive search
     try {
       final toolsDir = Directory('${executableDir.path}/tools');
       if (toolsDir.existsSync()) {
@@ -208,7 +211,6 @@ class PptxConverterLibreOffice {
       // Continue
     }
 
-    // macOS/Linux which
     try {
       final result = await Process.run('which', ['soffice']);
       if (result.exitCode == 0 && result.stdout.toString().trim().isNotEmpty) {
@@ -218,7 +220,6 @@ class PptxConverterLibreOffice {
       // Continue
     }
 
-    // Windows where
     if (Platform.isWindows) {
       try {
         final result = await Process.run('where', ['soffice']);

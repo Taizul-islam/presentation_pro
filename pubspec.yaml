@@ -20,11 +20,12 @@ dependencies:
   file_picker:
   pdfrx:
   path_provider:
-  archive:
+  archive: ^4.3.0
   xml:
   pdf:
   printing:
   window_manager:
+  image: ^4.10.1
 
 dev_dependencies:
   flutter_test:

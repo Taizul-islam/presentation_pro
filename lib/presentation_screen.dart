@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -42,13 +43,13 @@ class _PresentationScreenState extends State<PresentationScreen>
   int? _activeTextIndex;
   double _currentSelectionThickness = 4.0;
   String _sourceFileName = 'Presentation';
-  
+
   Color _selectedColor = Colors.red;
   double _strokeWidth = 4.0;
   double _eraserWidth = 30.0;
   DrawingTool _selectedTool = DrawingTool.pen;
   Offset? _hoverPosition;
-  
+
   int _currentPageIndex = 0;
   List<PresentationPage> _pages = [];
   DrawingStroke? _currentStroke;
@@ -74,15 +75,18 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   void _initializePages() {
     setState(() {
-      _pages = List.generate(3, (index) => PresentationPage(
-        pageNumber: index + 1,
-        title: 'Blank Slide ${index + 1}',
-        subtitle: 'Start writing or annotate',
-        icon: Icons.note_add,
-        contentType: PageContentType.image,
-        contentPath: null,
-        backgroundColor: Colors.white,
-      ));
+      _pages = List.generate(
+        3,
+            (index) => PresentationPage(
+          pageNumber: index + 1,
+          title: 'Blank Slide ${index + 1}',
+          subtitle: 'Start writing or annotate',
+          icon: Icons.note_add,
+          contentType: PageContentType.image,
+          contentPath: null,
+          backgroundColor: Colors.white,
+        ),
+      );
       _currentPageIndex = 0;
     });
     if (_pageController.hasClients) {
@@ -144,9 +148,11 @@ class _PresentationScreenState extends State<PresentationScreen>
       setState(() {
         _saveToHistory();
 
-        final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes)
+        final updatedStrokes =
+        List<DrawingStroke>.from(_pages[_currentPageIndex].strokes)
           ..add(_currentStroke!);
-        _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+        _pages[_currentPageIndex] =
+            _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
         _currentStroke = null;
         _pages = List.from(_pages);
       });
@@ -188,7 +194,8 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _clearStrokes() {
     setState(() {
       _saveToHistory();
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: [], texts: []);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(strokes: [], texts: []);
       _pages = List.from(_pages);
     });
   }
@@ -196,18 +203,56 @@ class _PresentationScreenState extends State<PresentationScreen>
   // --- Document Loading Methods ---
 
   Future<void> _pickDocument() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'pptx'],
-      allowMultiple: true,
-    );
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'pptx'],
+        allowMultiple: true,
+      );
 
-    if (result != null && result.files.isNotEmpty) {
+      if (result == null || result.files.isEmpty) return;
+
       final paths = result.files.map((f) => f.path!).toList();
-      
-      // Check for document files first (PDF or PPTX)
-      final pdfPath = paths.firstWhere((p) => p.toLowerCase().endsWith('.pdf'), orElse: () => '');
-      final pptxPath = paths.firstWhere((p) => p.toLowerCase().endsWith('.pptx'), orElse: () => '');
+      final pdfPath =
+      paths.firstWhere((p) => p.toLowerCase().endsWith('.pdf'), orElse: () => '');
+      final pptxPath = paths
+          .firstWhere((p) => p.toLowerCase().endsWith('.pptx'), orElse: () => '');
+
+      // Warn for large files
+      String? largeFilePath;
+      if (pdfPath.isNotEmpty) largeFilePath = pdfPath;
+      else if (pptxPath.isNotEmpty) largeFilePath = pptxPath;
+
+      if (largeFilePath != null) {
+        final fileSize = await File(largeFilePath).length();
+        final sizeMB = fileSize / (1024 * 1024);
+
+        if (sizeMB > 50) {
+          final proceed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Large File'),
+              content: Text(
+                'This file is ${sizeMB.toStringAsFixed(1)} MB. Loading may take '
+                    'several minutes and require significant memory.\n\n'
+                    'For best performance with very large files, consider converting '
+                    'to PDF first.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Proceed'),
+                ),
+              ],
+            ),
+          );
+          if (proceed != true) return;
+        }
+      }
 
       setState(() {
         _isLoadingDocument = true;
@@ -221,26 +266,55 @@ class _PresentationScreenState extends State<PresentationScreen>
         } else if (pptxPath.isNotEmpty) {
           await _loadPptx(pptxPath);
         } else {
-          // Load all selected images
           await _loadImages(paths);
         }
-      } catch (e) {
-        _showSnackBar('Error loading document: $e', Colors.red, Icons.error);
+      } catch (e, stack) {
+        // Detailed error with context
+        _showDetailedError(
+          title: 'Error Loading Document',
+          error: e,
+          stackTrace: stack,
+          contextInfo: 'File: ${paths.join(", ")}',
+        );
       } finally {
         setState(() {
           _isLoadingDocument = false;
         });
       }
+    } catch (e, stack) {
+      // Error in the file picker itself
+      _showDetailedError(
+        title: 'File Picker Error',
+        error: e,
+        stackTrace: stack,
+        contextInfo: 'Could not open the file picker dialog.',
+      );
     }
   }
 
   Future<void> _loadPdf(String path) async {
     setState(() {
       _loadingMessage = 'Loading PDF...';
-      // Extract filename without extension
-      _sourceFileName = path.split(Platform.pathSeparator).last.split('.').first;
+      _sourceFileName =
+          path.split(Platform.pathSeparator).last.split('.').first;
     });
-    final document = await PdfDocument.openFile(path);
+
+    // First, verify the file exists and is readable
+    final file = File(path);
+    if (!await file.exists()) {
+      throw Exception('File not found at path: $path');
+    }
+
+    final fileSize = await file.length();
+    if (fileSize == 0) {
+      throw Exception('File is empty (0 bytes): $path');
+    }
+
+    // Progressive loading
+    final document = await PdfDocument.openFile(
+      path,
+      useProgressiveLoading: true,
+    );
     _currentPdfDocument?.dispose();
     _currentPdfDocument = document;
 
@@ -268,7 +342,8 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   Future<void> _loadImages(List<String> paths) async {
     setState(() {
-      _sourceFileName = paths.first.split(Platform.pathSeparator).last.split('.').first;
+      _sourceFileName =
+          paths.first.split(Platform.pathSeparator).last.split('.').first;
     });
     final List<PresentationPage> newPages = [];
     for (int i = 0; i < paths.length; i++) {
@@ -276,7 +351,7 @@ class _PresentationScreenState extends State<PresentationScreen>
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
       final image = frame.image;
-      
+
       newPages.add(PresentationPage(
         pageNumber: i + 1,
         title: 'Image ${i + 1}',
@@ -286,6 +361,7 @@ class _PresentationScreenState extends State<PresentationScreen>
         contentPath: paths[i],
         aspectRatio: image.width / image.height,
       ));
+      image.dispose();
     }
 
     setState(() {
@@ -298,45 +374,70 @@ class _PresentationScreenState extends State<PresentationScreen>
   Future<void> _loadPptx(String path) async {
     setState(() {
       _loadingMessage = 'Converting PPTX...';
-      _sourceFileName = path.split(Platform.pathSeparator).last.split('.').first;
+      _sourceFileName =
+          path.split(Platform.pathSeparator).last.split('.').first;
     });
+
+    // Verify file exists
+    final file = File(path);
+    if (!await file.exists()) {
+      throw Exception('PPTX file not found at: $path');
+    }
+
+    final fileSize = await file.length();
+    if (fileSize == 0) {
+      throw Exception('PPTX file is empty (0 bytes).');
+    }
+
+    // Convert with detailed error reporting
+    final List<String> imagePaths;
     try {
-      final imagePaths = await PptxConverterLibreOffice.convertPptxToImages(
+      imagePaths = await PptxConverterLibreOffice.convertPptxToImages(
         path,
         onProgress: (progress) {
           if (mounted) setState(() => _loadingProgress = progress);
         },
       );
-
-      if (imagePaths.isEmpty) return;
-
-      // Get aspect ratio from the first slide
-      final firstBytes = await File(imagePaths.first).readAsBytes();
-      final codec = await ui.instantiateImageCodec(firstBytes);
-      final frame = await codec.getNextFrame();
-      final ratio = frame.image.width / frame.image.height;
-
-      final List<PresentationPage> newPages = [];
-      for (int i = 0; i < imagePaths.length; i++) {
-        newPages.add(PresentationPage(
-          pageNumber: i + 1,
-          title: 'Slide ${i + 1}',
-          subtitle: 'From: ${path.split(Platform.pathSeparator).last}',
-          icon: Icons.slideshow,
-          contentType: PageContentType.image,
-          contentPath: imagePaths[i],
-          aspectRatio: ratio,
-        ));
-      }
-
-      setState(() {
-        _pages = newPages;
-        _currentPageIndex = 0;
-      });
-      _pageController.jumpToPage(0);
-    } catch (e) {
-      _showSnackBar('Error loading PPTX: $e', Colors.red, Icons.error);
+    } catch (e, stack) {
+      // Re-throw with specific context
+      throw Exception(
+        'PPTX conversion failed.\n\n'
+            'File: $path\n'
+            'Size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB\n'
+            'Reason: $e',
+      );
     }
+
+    if (imagePaths.isEmpty) {
+      throw Exception(
+        'PPTX conversion produced no images. The file may be empty or corrupted.',
+      );
+    }
+
+    final firstBytes = await File(imagePaths.first).readAsBytes();
+    final codec = await ui.instantiateImageCodec(firstBytes);
+    final frame = await codec.getNextFrame();
+    final ratio = frame.image.width / frame.image.height;
+    frame.image.dispose();
+
+    final List<PresentationPage> newPages = [];
+    for (int i = 0; i < imagePaths.length; i++) {
+      newPages.add(PresentationPage(
+        pageNumber: i + 1,
+        title: 'Slide ${i + 1}',
+        subtitle: 'From: ${path.split(Platform.pathSeparator).last}',
+        icon: Icons.slideshow,
+        contentType: PageContentType.image,
+        contentPath: imagePaths[i],
+        aspectRatio: ratio,
+      ));
+    }
+
+    setState(() {
+      _pages = newPages;
+      _currentPageIndex = 0;
+    });
+    _pageController.jumpToPage(0);
   }
 
   // --- Export Methods ---
@@ -349,7 +450,7 @@ class _PresentationScreenState extends State<PresentationScreen>
     });
     try {
       final path = await ExportService.exportAsPdf(
-        _pages, 
+        _pages,
         _generateExportFileName(),
         onProgress: (current, total) {
           setState(() {
@@ -359,60 +460,73 @@ class _PresentationScreenState extends State<PresentationScreen>
         },
       );
       if (path != null) {
-        _showSnackBar('PDF Exported to: ${path.split(Platform.pathSeparator).last}', Colors.green, Icons.check_circle);
+        _showSnackBar(
+          'PDF Exported to: ${path.split(Platform.pathSeparator).last}',
+          Colors.green,
+          Icons.check_circle,
+        );
       } else {
         _showSnackBar('Export cancelled.', Colors.orange, Icons.warning);
       }
-    } catch (e) {
-      _showErrorDialog('PDF Export Failed', e);
+    } catch (e, stack) {
+      _showDetailedError(
+        title: 'PDF Export Failed',
+        error: e,
+        stackTrace: stack,
+        contextInfo:
+        'Slides: ${_pages.length}\nFile name: ${_generateExportFileName()}.pdf',
+      );
     } finally {
       setState(() => _isLoadingDocument = false);
     }
   }
 
   Future<void> _exportAsPptx() async {
-    setState(() {
-      _isLoadingDocument = true;
-      _loadingMessage = 'Preparing PPTX...';
-      _loadingProgress = 0;
-    });
-    try {
-      final path = await ExportService.exportAsPptx(
-        _pages, 
-        _generateExportFileName(),
-        onProgress: (current, total) {
-          setState(() {
-            _loadingMessage = 'Processing Slide $current of $total...';
-            _loadingProgress = current / total;
-          });
-        },
-      );
-      if (path != null) {
-        _showSnackBar('PPTX Exported to: ${path.split(Platform.pathSeparator).last}', Colors.green, Icons.check_circle);
-      } else {
-        _showSnackBar('Export failed.', Colors.orange, Icons.warning);
-      }
-    } catch (e) {
-      _showErrorDialog('PPTX Export Failed', e);
-    } finally {
-      setState(() => _isLoadingDocument = false);
+    // PPTX export is not supported - use PDF instead.
+    final shouldExportPdf = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.blue),
+            SizedBox(width: 10),
+            Text('Export as PDF'),
+          ],
+        ),
+        content: const Text(
+          'To ensure your presentation opens correctly on every computer '
+              'and looks exactly like what you see here, please export as PDF.\n\n'
+              'The PDF preserves the slide layout, your annotations, and every '
+              'detail without any compatibility issues.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Export PDF'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldExportPdf == true) {
+      await _exportAsPdf();
     }
   }
 
   Future<void> _printPresentation() async {
-    print('DEBUG: _printPresentation button clicked');
     setState(() {
       _isLoadingDocument = true;
       _loadingMessage = 'Preparing for Print...';
       _loadingProgress = 0;
     });
-    
-    // Ensure UI is updated and overlay is visible before starting heavy work
+
     await Future.delayed(const Duration(milliseconds: 300));
-    
+
     try {
-      print('DEBUG: Calling ExportService.printPages...');
-      // Decouple the call from the current animation frame
       Future.microtask(() async {
         try {
           await ExportService.printPages(
@@ -426,18 +540,154 @@ class _PresentationScreenState extends State<PresentationScreen>
               }
             },
           );
-        } catch (e) {
-           _showSnackBar('Printing failed: $e', Colors.red, Icons.error);
+        } catch (e, stack) {
+          if (mounted) {
+            _showDetailedError(
+              title: 'Printing Failed',
+              error: e,
+              stackTrace: stack,
+              contextInfo: 'Slides: ${_pages.length}',
+            );
+          }
         } finally {
           if (mounted) setState(() => _isLoadingDocument = false);
         }
       });
-      print('DEBUG: Print task scheduled');
-    } catch (e) {
-      print('DEBUG: Error in _printPresentation schedule: $e');
+    } catch (e, stack) {
       if (mounted) setState(() => _isLoadingDocument = false);
-      _showSnackBar('Error: ${e.toString()}', Colors.red, Icons.error);
+      _showDetailedError(
+        title: 'Print Setup Failed',
+        error: e,
+        stackTrace: stack,
+        contextInfo: 'Slides: ${_pages.length}',
+      );
     }
+  }
+
+  // --- Detailed Error Dialog ---
+
+  void _showDetailedError({
+    required String title,
+    required dynamic error,
+    StackTrace? stackTrace,
+    String? contextInfo,
+  }) {
+    final errorString = error.toString();
+    final stackString = stackTrace?.toString() ?? 'No stack trace available.';
+    final contextString = contextInfo ?? 'No additional context.';
+
+    showDialog(
+      context: context,  // now refers to the widget's BuildContext
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 28),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Please take a screenshot of this dialog and send it to support.',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 16),
+                _buildErrorSection('Context', contextString),
+                _buildErrorSection('Error Message', errorString),
+                _buildErrorSection(
+                  'Stack Trace (first 20 lines)',
+                  stackString.split('\n').take(20).join('\n'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('Copy to Clipboard'),
+            onPressed: () {
+              final fullReport = '''
+=== ERROR REPORT ===
+Title: $title
+Date: ${DateTime.now().toIso8601String()}
+
+--- CONTEXT ---
+$contextString
+
+--- ERROR ---
+$errorString
+
+--- STACK TRACE ---
+$stackString
+''';
+              Clipboard.setData(ClipboardData(text: fullReport));
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                const SnackBar(
+                  content: Text('Error report copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorSection(String label, String content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: SelectableText(
+              content,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // --- UI Builder Methods ---
@@ -454,21 +704,27 @@ class _PresentationScreenState extends State<PresentationScreen>
               AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 width: _isSidebarCollapsed ? 0 : 180,
-                child: _isSidebarCollapsed ? const SizedBox.shrink() : _buildSidebar(),
+                child: _isSidebarCollapsed
+                    ? const SizedBox.shrink()
+                    : _buildSidebar(),
               ),
               if (_isDrawingMode && _currentMode != AppMode.teaching)
                 GestureDetector(
-                  onTap: () => setState(() => _isSidebarCollapsed = !_isSidebarCollapsed),
+                  onTap: () => setState(
+                          () => _isSidebarCollapsed = !_isSidebarCollapsed),
                   child: Container(
                     width: 24,
                     height: 60,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.8),
-                      borderRadius: const BorderRadius.horizontal(right: Radius.circular(12)),
+                      borderRadius: const BorderRadius.horizontal(
+                          right: Radius.circular(12)),
                     ),
                     child: Icon(
-                      _isSidebarCollapsed ? Icons.chevron_right : Icons.chevron_left,
+                      _isSidebarCollapsed
+                          ? Icons.chevron_right
+                          : Icons.chevron_left,
                       size: 16,
                       color: Colors.grey,
                     ),
@@ -477,23 +733,22 @@ class _PresentationScreenState extends State<PresentationScreen>
               Expanded(child: _buildContentPage()),
             ],
           ),
-
           if (_isDrawingMode && _isMenuVisible)
             Positioned(
               left: 30,
               bottom: 60,
               child: _buildVerticalMenu(),
             ),
-
           if (_isDrawingMode)
             Positioned(
               left: 0,
               bottom: 0,
               child: _buildBottomLeftMenu(),
             ),
-
-          // Stroke Width Slider
-          if (_isDrawingMode && (_selectedTool == DrawingTool.pen || _selectedTool == DrawingTool.eraser || _selectedTool == DrawingTool.highlighter))
+          if (_isDrawingMode &&
+              (_selectedTool == DrawingTool.pen ||
+                  _selectedTool == DrawingTool.eraser ||
+                  _selectedTool == DrawingTool.highlighter))
             Positioned(
               left: 0,
               right: 0,
@@ -502,7 +757,9 @@ class _PresentationScreenState extends State<PresentationScreen>
                 child: SizedBox(
                   width: 300,
                   child: StrokeWidthSlider(
-                    strokeWidth: _selectedTool == DrawingTool.eraser ? _eraserWidth : _strokeWidth,
+                    strokeWidth: _selectedTool == DrawingTool.eraser
+                        ? _eraserWidth
+                        : _strokeWidth,
                     selectedColor: _selectedColor,
                     onStrokeWidthChanged: (width) => setState(() {
                       if (_selectedTool == DrawingTool.eraser) {
@@ -513,12 +770,13 @@ class _PresentationScreenState extends State<PresentationScreen>
                     }),
                     min: _selectedTool == DrawingTool.eraser ? 10.0 : 1.0,
                     max: _selectedTool == DrawingTool.eraser ? 100.0 : 15.0,
-                    label: _selectedTool == DrawingTool.eraser ? 'Duster Size' : 'Stroke Width',
+                    label: _selectedTool == DrawingTool.eraser
+                        ? 'Duster Size'
+                        : 'Stroke Width',
                   ),
                 ),
               ),
             ),
-
           if (_isDrawingMode)
             Positioned(
               left: 0,
@@ -526,14 +784,12 @@ class _PresentationScreenState extends State<PresentationScreen>
               bottom: 0,
               child: _buildFloatingToolbar(),
             ),
-
           if (_isDrawingMode)
             Positioned(
               right: 0,
               bottom: 0,
               child: _buildSlideNavigation(),
             ),
-
           if (_isLoadingDocument) _buildLoadingOverlay(),
         ],
       ),
@@ -542,11 +798,20 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   PreferredSizeWidget _buildDefaultAppBar() {
     return AppBar(
-      title: Text('Presentation Pro', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
+      title: Text(
+        'Presentation Pro',
+        style: GoogleFonts.poppins(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       actions: [
         IconButton(icon: const Icon(Icons.file_open), onPressed: _pickDocument),
-        IconButton(icon: const Icon(Icons.palette), onPressed: _showBackgroundColorPicker),
-        IconButton(icon: const Icon(Icons.picture_as_pdf), onPressed: _exportAsPdf),
+        IconButton(
+            icon: const Icon(Icons.palette),
+            onPressed: _showBackgroundColorPicker),
+        IconButton(
+            icon: const Icon(Icons.picture_as_pdf), onPressed: _exportAsPdf),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: ElevatedButton.icon(
@@ -564,6 +829,7 @@ class _PresentationScreenState extends State<PresentationScreen>
       controller: _pageController,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _pages.length,
+      allowImplicitScrolling: false,
       onPageChanged: (index) {
         setState(() {
           _currentPageIndex = index;
@@ -581,7 +847,10 @@ class _PresentationScreenState extends State<PresentationScreen>
   Widget _buildSlideItem(int index) {
     final page = _pages[index];
     final isCurrentPage = _currentPageIndex == index;
-    final hasDrawing = page.strokes.isNotEmpty || page.texts.isNotEmpty || (isCurrentPage && _currentStroke != null);
+    final isNearCurrent = (index - _currentPageIndex).abs() <= 1;
+    final hasDrawing = page.strokes.isNotEmpty ||
+        page.texts.isNotEmpty ||
+        (isCurrentPage && _currentStroke != null);
     final isTeachingMode = _currentMode == AppMode.teaching;
 
     return LayoutBuilder(
@@ -589,7 +858,11 @@ class _PresentationScreenState extends State<PresentationScreen>
         Widget buildContent(double slideWidth, double slideHeight) {
           return Stack(
             children: [
-              Positioned.fill(child: _buildPageContent(page, hasDrawing: hasDrawing)),
+              Positioned.fill(
+                child: isNearCurrent
+                    ? _buildPageContent(page, hasDrawing: hasDrawing)
+                    : Container(color: page.backgroundColor ?? Colors.white),
+              ),
               Positioned.fill(
                 child: DrawingCanvas(
                   strokes: page.strokes,
@@ -602,7 +875,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                   onStrokeStart: _startStroke,
                   onStrokeUpdate: _updateStroke,
                   onStrokeEnd: _endStroke,
-                  onHoverUpdate: (pos) => setState(() => _hoverPosition = pos),
+                  onHoverUpdate: (pos) =>
+                      setState(() => _hoverPosition = pos),
                   onStrokesMoved: _handleStrokesMoved,
                   onStrokesScaled: _handleStrokesScaled,
                   onStrokesRotated: _handleStrokesRotated,
@@ -611,20 +885,26 @@ class _PresentationScreenState extends State<PresentationScreen>
                     setState(() {
                       _activeSelectionRect = rect;
                       _activeSelectedIndices = indices;
-                      _activeTextIndex = null; // Exclusive selection
+                      _activeTextIndex = null;
                       _isContextSubMenuVisible = false;
                       _isThicknessSubMenuVisible = false;
                       _isColorSubMenuVisible = false;
-                      
+
                       if (indices.isNotEmpty) {
-                        _currentSelectionThickness = _pages[_currentPageIndex].strokes[indices.first].width;
+                        _currentSelectionThickness = _pages[_currentPageIndex]
+                            .strokes[indices.first]
+                            .width;
                       }
                     });
                   },
                   onTextCreated: _handleTextCreated,
                   onInteraction: () {
                     _cleanupEmptyTexts();
-                    if (_isMenuVisible || _isModeSubMenuVisible || _isContextSubMenuVisible || _isThicknessSubMenuVisible || _isColorSubMenuVisible) {
+                    if (_isMenuVisible ||
+                        _isModeSubMenuVisible ||
+                        _isContextSubMenuVisible ||
+                        _isThicknessSubMenuVisible ||
+                        _isColorSubMenuVisible) {
                       setState(() {
                         _isMenuVisible = false;
                         _isModeSubMenuVisible = false;
@@ -640,10 +920,10 @@ class _PresentationScreenState extends State<PresentationScreen>
                 final idx = entry.key;
                 final text = entry.value;
 
-                // Scale normalized text to current slide pixels
                 final scaledText = text.copyWith(
-                  position: Offset(text.position.dx * slideWidth, text.position.dy * slideHeight),
-                  width: text.width * (slideWidth / 1920.0), // Use 1920 as base width for text box
+                  position: Offset(text.position.dx * slideWidth,
+                      text.position.dy * slideHeight),
+                  width: text.width * (slideWidth / 1920.0),
                   fontSize: text.fontSize * (slideWidth / 1920.0),
                 );
 
@@ -651,46 +931,59 @@ class _PresentationScreenState extends State<PresentationScreen>
                   element: scaledText,
                   isSelected: isCurrentPage && _activeTextIndex == idx,
                   onTextChanged: (val) => _updateText(idx, val),
-                  onPositionChanged: (delta) => _moveText(idx, Offset(delta.dx / slideWidth, delta.dy / slideHeight)),
-                  onWidthChanged: (val) => _resizeTextWidth(idx, val / (slideWidth / 1920.0)),
-                  onScaleChanged: (w, s) => _scaleText(idx, w / (slideWidth / 1920.0), s / (slideWidth / 1920.0)),
+                  onPositionChanged: (delta) => _moveText(
+                      idx,
+                      Offset(delta.dx / slideWidth, delta.dy / slideHeight)),
+                  onWidthChanged: (val) =>
+                      _resizeTextWidth(idx, val / (slideWidth / 1920.0)),
+                  onScaleChanged: (w, s) => _scaleText(
+                      idx,
+                      w / (slideWidth / 1920.0),
+                      s / (slideWidth / 1920.0)),
                   onInteractionStart: () => _saveToHistory(),
                   onTap: () => setState(() {
                     _activeTextIndex = idx;
-                    _activeSelectedIndices = []; // Exclusive selection
+                    _activeSelectedIndices = [];
                     _isTextFormattingVisible = true;
-                    // Provide a selection rect for the contextual menu
                     _activeSelectionRect = Rect.fromLTWH(
-                      text.position.dx * slideWidth, 
-                      text.position.dy * slideHeight, 
-                      text.width * (slideWidth / 1920.0), 
-                      50 // Estimated height for menu positioning
+                      text.position.dx * slideWidth,
+                      text.position.dy * slideHeight,
+                      text.width * (slideWidth / 1920.0),
+                      50,
                     );
-                    _selectedTool = DrawingTool.selector; // Switch to selector tool to show menu
+                    _selectedTool = DrawingTool.selector;
                   }),
                 );
               }),
-              if (isCurrentPage && _activeSelectionRect != null && _selectedTool == DrawingTool.selector) ...[
-                _buildVerticalSelectionToolbar(_activeSelectionRect!, slideWidth, slideHeight),
+              if (isCurrentPage &&
+                  _activeSelectionRect != null &&
+                  _selectedTool == DrawingTool.selector) ...[
+                _buildVerticalSelectionToolbar(
+                    _activeSelectionRect!, slideWidth, slideHeight),
                 if (_isContextSubMenuVisible)
-                  _buildExpandedContextMenu(_activeSelectionRect!, slideWidth, slideHeight),
+                  _buildExpandedContextMenu(
+                      _activeSelectionRect!, slideWidth, slideHeight),
                 if (_isContextSubMenuVisible && _isThicknessSubMenuVisible)
-                  _buildThicknessSubMenu(_activeSelectionRect!, slideWidth, slideHeight),
+                  _buildThicknessSubMenu(
+                      _activeSelectionRect!, slideWidth, slideHeight),
                 if (_isContextSubMenuVisible && _isColorSubMenuVisible)
-                  _buildColorSubMenu(_activeSelectionRect!, slideWidth, slideHeight),
+                  _buildColorSubMenu(
+                      _activeSelectionRect!, slideWidth, slideHeight),
               ],
-              if (isCurrentPage && 
-                  _activeTextIndex != null && 
-                  _isTextFormattingVisible && 
-                  _activeTextIndex! >= 0 && 
+              if (isCurrentPage &&
+                  _activeTextIndex != null &&
+                  _isTextFormattingVisible &&
+                  _activeTextIndex! >= 0 &&
                   _activeTextIndex! < page.texts.length)
                 Positioned(
                   right: 20,
                   top: 20,
                   child: TextFormattingDialog(
                     element: page.texts[_activeTextIndex!],
-                    onChanged: (updated) => _updateTextElement(_activeTextIndex!, updated),
-                    onClose: () => setState(() => _isTextFormattingVisible = false),
+                    onChanged: (updated) =>
+                        _updateTextElement(_activeTextIndex!, updated),
+                    onClose: () =>
+                        setState(() => _isTextFormattingVisible = false),
                   ),
                 ),
             ],
@@ -706,13 +999,16 @@ class _PresentationScreenState extends State<PresentationScreen>
 
         return Center(
           child: Padding(
-            padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 90),
+            padding:
+            const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 90),
             child: AspectRatio(
               aspectRatio: page.aspectRatio ?? 16 / 9,
               child: Container(
                 decoration: BoxDecoration(
                   color: page.backgroundColor ?? Colors.white,
-                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 10)
+                  ],
                 ),
                 child: InteractiveViewer(
                   minScale: 1.0,
@@ -721,7 +1017,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                   scaleEnabled: _selectedTool == DrawingTool.hand,
                   child: LayoutBuilder(
                     builder: (context, slideConstraints) {
-                      return buildContent(slideConstraints.maxWidth, slideConstraints.maxHeight);
+                      return buildContent(
+                          slideConstraints.maxWidth, slideConstraints.maxHeight);
                     },
                   ),
                 ),
@@ -736,7 +1033,8 @@ class _PresentationScreenState extends State<PresentationScreen>
   Widget _buildPageContent(PresentationPage page, {bool hasDrawing = false}) {
     switch (page.contentType) {
       case PageContentType.pdf:
-        if (_currentPdfDocument == null) return _buildPlaceholder(page, isHidden: hasDrawing);
+        if (_currentPdfDocument == null)
+          return _buildPlaceholder(page, isHidden: hasDrawing);
         return Center(
           child: PdfPageView(
             document: _currentPdfDocument!,
@@ -744,10 +1042,12 @@ class _PresentationScreenState extends State<PresentationScreen>
           ),
         );
       case PageContentType.image:
-        if (page.contentPath == null) return _buildPlaceholder(page, isHidden: hasDrawing);
+        if (page.contentPath == null)
+          return _buildPlaceholder(page, isHidden: hasDrawing);
         return Image.file(
           File(page.contentPath!),
-          fit: _currentMode == AppMode.teaching ? BoxFit.contain : BoxFit.contain,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stack) => _buildPlaceholder(page),
         );
       default:
         return _buildPlaceholder(page, isHidden: hasDrawing);
@@ -761,8 +1061,11 @@ class _PresentationScreenState extends State<PresentationScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(page.icon, size: 64, color: Colors.grey),
-          Text(page.title, style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold)),
-          Text(page.subtitle, style: GoogleFonts.poppins(color: Colors.grey)),
+          Text(page.title,
+              style: GoogleFonts.poppins(
+                  fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(page.subtitle,
+              style: GoogleFonts.poppins(color: Colors.grey)),
         ],
       ),
     );
@@ -781,6 +1084,7 @@ class _PresentationScreenState extends State<PresentationScreen>
             currentStroke: isCurrent ? _currentStroke : null,
             isSelected: isCurrent,
             onTap: () => _goToPage(index),
+            pdfDocument: _currentPdfDocument,
           );
         },
       ),
@@ -798,10 +1102,14 @@ class _PresentationScreenState extends State<PresentationScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(icon: const Icon(Icons.menu), onPressed: () => setState(() => _isMenuVisible = !_isMenuVisible)),
+          IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () =>
+                  setState(() => _isMenuVisible = !_isMenuVisible)),
           IconButton(icon: const Icon(Icons.monitor), onPressed: () {}),
           IconButton(icon: const Icon(Icons.build), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.cloud_upload), onPressed: _pickDocument),
+          IconButton(
+              icon: const Icon(Icons.cloud_upload), onPressed: _pickDocument),
           IconButton(icon: const Icon(Icons.zoom_in), onPressed: () {}),
         ],
       ),
@@ -821,17 +1129,23 @@ class _PresentationScreenState extends State<PresentationScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildToolbarIcon(Icons.near_me, DrawingTool.selector, _selectedTool == DrawingTool.selector),
-            _buildToolbarIcon(Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
+            _buildToolbarIcon(Icons.near_me, DrawingTool.selector,
+                _selectedTool == DrawingTool.selector),
+            _buildToolbarIcon(
+                Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
             IconButton(
               icon: const Icon(Icons.format_color_fill, size: 22),
               onPressed: _showBackgroundColorPicker,
               tooltip: 'Background Color',
             ),
-            _buildToolbarIcon(Icons.auto_fix_high, DrawingTool.eraser, _selectedTool == DrawingTool.eraser),
-            _buildToolbarIcon(Icons.title, DrawingTool.text, _selectedTool == DrawingTool.text),
-            _buildToolbarIcon(Icons.back_hand, DrawingTool.hand, _selectedTool == DrawingTool.hand),
-            _buildToolbarIcon(Icons.highlight, DrawingTool.highlighter, _selectedTool == DrawingTool.highlighter),
+            _buildToolbarIcon(Icons.auto_fix_high, DrawingTool.eraser,
+                _selectedTool == DrawingTool.eraser),
+            _buildToolbarIcon(Icons.title, DrawingTool.text,
+                _selectedTool == DrawingTool.text),
+            _buildToolbarIcon(Icons.back_hand, DrawingTool.hand,
+                _selectedTool == DrawingTool.hand),
+            _buildToolbarIcon(Icons.highlight, DrawingTool.highlighter,
+                _selectedTool == DrawingTool.highlighter),
             GestureDetector(
               onTap: _showDrawingColorPicker,
               child: Container(
@@ -860,57 +1174,68 @@ class _PresentationScreenState extends State<PresentationScreen>
     setState(() {
       _saveToHistory();
 
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final updatedStrokes =
+      List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
       for (final index in indices) {
         updatedStrokes[index] = updatedStrokes[index].translate(delta);
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
       _pages = List.from(_pages);
     });
   }
 
-  void _handleStrokesScaled(List<int> indices, double scaleX, double scaleY, Offset pivot) {
+  void _handleStrokesScaled(
+      List<int> indices, double scaleX, double scaleY, Offset pivot) {
     if (indices.isEmpty) return;
 
     setState(() {
       _saveToHistory();
 
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final updatedStrokes =
+      List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
       for (final index in indices) {
-        updatedStrokes[index] = updatedStrokes[index].scale(scaleX, scaleY, pivot);
+        updatedStrokes[index] =
+            updatedStrokes[index].scale(scaleX, scaleY, pivot);
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
       _pages = List.from(_pages);
     });
   }
 
-  void _handleStrokesRotated(List<int> indices, double angle, Offset center) {
+  void _handleStrokesRotated(
+      List<int> indices, double angle, Offset center) {
     if (indices.isEmpty) return;
 
     setState(() {
       _saveToHistory();
 
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final updatedStrokes =
+      List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
       for (final index in indices) {
         updatedStrokes[index] = updatedStrokes[index].rotate(angle, center);
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
       _pages = List.from(_pages);
     });
   }
 
   void _deleteSelectedStrokes() {
-    print('DEBUG: _deleteSelectedStrokes activeSelectedIndices=${_activeSelectedIndices.length}');
     if (_activeSelectedIndices.isEmpty) return;
     setState(() {
       _saveToHistory();
 
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
-      final sortedIndices = List<int>.from(_activeSelectedIndices)..sort((a, b) => b.compareTo(a));
+      final updatedStrokes =
+      List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final sortedIndices = List<int>.from(_activeSelectedIndices)
+        ..sort((a, b) => b.compareTo(a));
       for (final index in sortedIndices) {
         updatedStrokes.removeAt(index);
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
       _pages = List.from(_pages);
       _activeSelectedIndices = [];
       _activeSelectionRect = null;
@@ -919,20 +1244,20 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   void _duplicateSelectedElements() {
     if (_activeSelectedIndices.isEmpty && _activeTextIndex == null) return;
-    
+
     setState(() {
       _saveToHistory();
       final page = _pages[_currentPageIndex];
-      final List<DrawingStroke> updatedStrokes = List<DrawingStroke>.from(page.strokes);
-      final List<DrawingText> updatedTexts = List<DrawingText>.from(page.texts);
-      
-      // We use a small percentage for the offset (20px / 1920px width standard)
+      final List<DrawingStroke> updatedStrokes =
+      List<DrawingStroke>.from(page.strokes);
+      final List<DrawingText> updatedTexts =
+      List<DrawingText>.from(page.texts);
+
       final Offset normalizedOffset = const Offset(0.01, 0.02);
-      
+
       List<int> newStrokesSelection = [];
       int? newTextSelection;
 
-      // 1. Duplicate Strokes
       for (final index in _activeSelectedIndices) {
         if (index < page.strokes.length) {
           final clone = page.strokes[index].translate(normalizedOffset);
@@ -940,24 +1265,20 @@ class _PresentationScreenState extends State<PresentationScreen>
           newStrokesSelection.add(updatedStrokes.length - 1);
         }
       }
-      
-      // 2. Duplicate Text
+
       if (_activeTextIndex != null && _activeTextIndex! < page.texts.length) {
-        final clone = page.texts[_activeTextIndex!].translate(normalizedOffset);
+        final clone =
+        page.texts[_activeTextIndex!].translate(normalizedOffset);
         updatedTexts.add(clone);
         newTextSelection = updatedTexts.length - 1;
       }
-      
-      _pages[_currentPageIndex] = page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
+
+      _pages[_currentPageIndex] =
+          page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
       _pages = List.from(_pages);
-      
-      // 3. Auto-select the clones
+
       _activeSelectedIndices = newStrokesSelection;
       _activeTextIndex = newTextSelection;
-      
-      // If we duplicated something, we should probably update the selection rect
-      // but DrawingCanvas will do that on the next build if it's strokes.
-      // For text, we've updated _activeTextIndex.
     });
   }
 
@@ -970,7 +1291,8 @@ class _PresentationScreenState extends State<PresentationScreen>
         return Dialog(
           backgroundColor: Colors.white,
           elevation: 10,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Container(
             width: 380,
             padding: const EdgeInsets.all(16),
@@ -979,16 +1301,22 @@ class _PresentationScreenState extends State<PresentationScreen>
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Drawing Color', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                    Text('Drawing Color',
+                        style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600)),
                     const SizedBox(height: 12),
-                    _buildColorPalette(selectedColor, (color) => setDialogState(() => selectedColor = color)),
+                    _buildColorPalette(selectedColor,
+                            (color) => setDialogState(() => selectedColor = color)),
                     const SizedBox(height: 12),
-                    _buildHueSlider(selectedColor, (color) => setDialogState(() => selectedColor = color)),
+                    _buildHueSlider(selectedColor,
+                            (color) => setDialogState(() => selectedColor = color)),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+                        TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('Cancel')),
                         ElevatedButton(
                           onPressed: () {
                             setState(() => _selectedColor = selectedColor);
@@ -1012,7 +1340,8 @@ class _PresentationScreenState extends State<PresentationScreen>
     final currentPage = _pages[_currentPageIndex];
     if (currentPage.texts.any((t) => t.text.trim().isEmpty)) {
       setState(() {
-        final updatedTexts = currentPage.texts.where((t) => t.text.trim().isNotEmpty).toList();
+        final updatedTexts =
+        currentPage.texts.where((t) => t.text.trim().isNotEmpty).toList();
         _pages[_currentPageIndex] = currentPage.copyWith(texts: updatedTexts);
         _pages = List.from(_pages);
         _activeTextIndex = null;
@@ -1024,7 +1353,9 @@ class _PresentationScreenState extends State<PresentationScreen>
   Widget _buildToolbarIcon(IconData icon, DrawingTool? tool, bool isSelected) {
     return IconButton(
       icon: Icon(icon, color: isSelected ? Colors.indigo : Colors.grey),
-      onPressed: tool == null ? null : () {
+      onPressed: tool == null
+          ? null
+          : () {
         _cleanupEmptyTexts();
         setState(() => _selectedTool = tool);
       },
@@ -1042,8 +1373,10 @@ class _PresentationScreenState extends State<PresentationScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(icon: const Icon(Icons.arrow_left), onPressed: _previousPage),
-          Text('${_currentPageIndex + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
+          IconButton(
+              icon: const Icon(Icons.arrow_left), onPressed: _previousPage),
+          Text('${_currentPageIndex + 1}',
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           IconButton(icon: const Icon(Icons.arrow_right), onPressed: _nextPage),
           IconButton(icon: const Icon(Icons.add), onPressed: _addNewSlide),
         ],
@@ -1053,7 +1386,7 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   Widget _buildVerticalMenu() {
     return SizedBox(
-      width: 300, // Explicit width to allow hit-testing on the sub-menu
+      width: 300,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -1062,7 +1395,9 @@ class _PresentationScreenState extends State<PresentationScreen>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15)],
+              boxShadow: const [
+                BoxShadow(color: Colors.black12, blurRadius: 15)
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1071,7 +1406,6 @@ class _PresentationScreenState extends State<PresentationScreen>
                   icon: Icons.note_add,
                   label: 'New',
                   onTap: () {
-                    print('DEBUG: New Presentation clicked');
                     setState(() => _isMenuVisible = false);
                     _initializePages();
                   },
@@ -1080,7 +1414,6 @@ class _PresentationScreenState extends State<PresentationScreen>
                   icon: Icons.file_open,
                   label: 'Open',
                   onTap: () {
-                    print('DEBUG: Open Document clicked');
                     setState(() => _isMenuVisible = false);
                     _pickDocument();
                   },
@@ -1089,7 +1422,6 @@ class _PresentationScreenState extends State<PresentationScreen>
                   icon: Icons.delete_outline,
                   label: 'Clear',
                   onTap: () {
-                    print('DEBUG: Clear Canvas clicked');
                     setState(() => _isMenuVisible = false);
                     _clearStrokes();
                   },
@@ -1098,7 +1430,6 @@ class _PresentationScreenState extends State<PresentationScreen>
                   icon: Icons.print_outlined,
                   label: 'Print',
                   onTap: () {
-                    print('DEBUG: Print clicked');
                     setState(() => _isMenuVisible = false);
                     _printPresentation();
                   },
@@ -1108,18 +1439,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                   icon: Icons.picture_as_pdf,
                   label: 'Export PDF',
                   onTap: () {
-                    print('DEBUG: Export PDF clicked');
                     setState(() => _isMenuVisible = false);
                     _exportAsPdf();
-                  },
-                ),
-                SamsungMenuItem(
-                  icon: Icons.slideshow,
-                  label: 'Export PPTX',
-                  onTap: () {
-                    print('DEBUG: Export PPTX clicked');
-                    setState(() => _isMenuVisible = false);
-                    _exportAsPptx();
                   },
                 ),
                 const Divider(height: 1),
@@ -1128,8 +1449,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                   label: 'Mode',
                   trailingIcon: Icons.arrow_right,
                   onTap: () {
-                    print('DEBUG: Mode Menu toggled');
-                    setState(() => _isModeSubMenuVisible = !_isModeSubMenuVisible);
+                    setState(() =>
+                    _isModeSubMenuVisible = !_isModeSubMenuVisible);
                   },
                 ),
               ],
@@ -1144,7 +1465,9 @@ class _PresentationScreenState extends State<PresentationScreen>
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15)],
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black12, blurRadius: 15)
+                  ],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1152,26 +1475,17 @@ class _PresentationScreenState extends State<PresentationScreen>
                     _buildModeItem(
                       icon: Icons.monitor,
                       label: 'Teaching',
-                      onTap: () {
-                        print('DEBUG: Switching to Teaching Mode');
-                        _switchMode(AppMode.teaching);
-                      },
+                      onTap: () => _switchMode(AppMode.teaching),
                     ),
                     _buildModeItem(
                       icon: Icons.edit_note,
                       label: 'Preparation',
-                      onTap: () {
-                        print('DEBUG: Switching to Preparation Mode');
-                        _switchMode(AppMode.preparation);
-                      },
+                      onTap: () => _switchMode(AppMode.preparation),
                     ),
                     _buildModeItem(
                       icon: Icons.desktop_windows,
                       label: 'Desktop',
-                      onTap: () {
-                        print('DEBUG: Switching to Desktop Mode');
-                        _switchMode(AppMode.desktop);
-                      },
+                      onTap: () => _switchMode(AppMode.desktop),
                     ),
                   ],
                 ),
@@ -1182,7 +1496,8 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
-  Widget _buildVerticalSelectionToolbar(Rect rect, double slideWidth, double slideHeight) {
+  Widget _buildVerticalSelectionToolbar(
+      Rect rect, double slideWidth, double slideHeight) {
     const double toolbarWidth = 45.0;
     const double toolbarHeight = 225.0;
     const double expandedMenuWidth = 220.0;
@@ -1190,43 +1505,51 @@ class _PresentationScreenState extends State<PresentationScreen>
     const double horizontalPadding = 10.0;
     const double verticalPadding = 10.0;
 
-    // 1. Determine Horizontal Side for the whole chain
-    // We check if there's enough room for EVERYTHING (Toolbar + More Menu + Color Picker)
-    double totalChainWidth = toolbarWidth + horizontalPadding + expandedMenuWidth + horizontalPadding + subMenuWidth;
+    double totalChainWidth = toolbarWidth +
+        horizontalPadding +
+        expandedMenuWidth +
+        horizontalPadding +
+        subMenuWidth;
     bool hasSpaceOnRight = (rect.right + totalChainWidth + 20) < slideWidth;
-    
+
     double left;
     if (hasSpaceOnRight) {
       left = rect.right + horizontalPadding;
     } else {
-      // Flip to left, but ensure it doesn't go off the left edge
-      left = (rect.left - horizontalPadding - toolbarWidth).clamp(horizontalPadding, slideWidth - toolbarWidth);
+      left = (rect.left - horizontalPadding - toolbarWidth)
+          .clamp(horizontalPadding, slideWidth - toolbarWidth);
     }
 
-    // 2. Vertical Clamping
-    double top = rect.top.clamp(verticalPadding, (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
+    double top = rect.top.clamp(verticalPadding,
+        (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
 
     return Positioned(
       left: left,
       top: top,
       child: GestureDetector(
-        onTap: () {}, // Shield
+        onTap: () {},
         behavior: HitTestBehavior.opaque,
         child: Container(
           width: toolbarWidth,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 10)
+            ],
             border: Border.all(color: Colors.grey.shade300, width: 0.5),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildContextAction(Icons.delete_outline, _deleteSelectedStrokes, Colors.red),
-              _buildContextAction(Icons.palette_outlined, _showDrawingColorPicker, Colors.indigo),
-              _buildContextAction(Icons.layers_outlined, () {}, Colors.grey.shade700),
-              _buildContextAction(Icons.copy_outlined, _duplicateSelectedElements, Colors.grey.shade700),
+              _buildContextAction(
+                  Icons.delete_outline, _deleteSelectedStrokes, Colors.red),
+              _buildContextAction(
+                  Icons.palette_outlined, _showDrawingColorPicker, Colors.indigo),
+              _buildContextAction(
+                  Icons.layers_outlined, () {}, Colors.grey.shade700),
+              _buildContextAction(Icons.copy_outlined,
+                  _duplicateSelectedElements, Colors.grey.shade700),
               _buildContextAction(Icons.menu, () {
                 setState(() {
                   _isContextSubMenuVisible = !_isContextSubMenuVisible;
@@ -1243,7 +1566,8 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
-  Widget _buildExpandedContextMenu(Rect rect, double slideWidth, double slideHeight) {
+  Widget _buildExpandedContextMenu(
+      Rect rect, double slideWidth, double slideHeight) {
     const double toolbarWidth = 45.0;
     const double toolbarHeight = 225.0;
     const double expandedMenuWidth = 220.0;
@@ -1252,28 +1576,37 @@ class _PresentationScreenState extends State<PresentationScreen>
     const double horizontalPadding = 10.0;
     const double verticalPadding = 10.0;
 
-    // Must match toolbar logic
-    double totalChainWidth = toolbarWidth + horizontalPadding + expandedMenuWidth + horizontalPadding + subMenuWidth;
+    double totalChainWidth = toolbarWidth +
+        horizontalPadding +
+        expandedMenuWidth +
+        horizontalPadding +
+        subMenuWidth;
     bool hasSpaceOnRight = (rect.right + totalChainWidth + 20) < slideWidth;
-    
-    double toolbarLeft = hasSpaceOnRight ? (rect.right + horizontalPadding) : (rect.left - horizontalPadding - toolbarWidth);
-    double toolbarTop = rect.top.clamp(verticalPadding, (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
 
-    double left = hasSpaceOnRight 
-        ? (toolbarLeft + toolbarWidth + horizontalPadding) 
+    double toolbarLeft = hasSpaceOnRight
+        ? (rect.right + horizontalPadding)
+        : (rect.left - horizontalPadding - toolbarWidth);
+    double toolbarTop = rect.top.clamp(verticalPadding,
+        (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
+
+    double left = hasSpaceOnRight
+        ? (toolbarLeft + toolbarWidth + horizontalPadding)
         : (toolbarLeft - horizontalPadding - expandedMenuWidth);
-    
-    // Vertical Lifting Logic
-    bool spaceBelow = (slideHeight - toolbarTop) > (maxMenuHeight + verticalPadding);
+
+    bool spaceBelow =
+        (slideHeight - toolbarTop) > (maxMenuHeight + verticalPadding);
     double? top = spaceBelow ? toolbarTop : null;
-    double? bottom = spaceBelow ? null : (slideHeight - (toolbarTop + toolbarHeight)).clamp(verticalPadding, slideHeight);
+    double? bottom = spaceBelow
+        ? null
+        : (slideHeight - (toolbarTop + toolbarHeight))
+        .clamp(verticalPadding, slideHeight);
 
     return Positioned(
       left: left,
       top: top,
       bottom: bottom,
       child: GestureDetector(
-        onTap: () {}, // Shield
+        onTap: () {},
         behavior: HitTestBehavior.opaque,
         child: Container(
           width: expandedMenuWidth,
@@ -1281,7 +1614,9 @@ class _PresentationScreenState extends State<PresentationScreen>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15)],
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 15)
+            ],
             border: Border.all(color: Colors.grey.shade200),
           ),
           child: ClipRRect(
@@ -1295,16 +1630,18 @@ class _PresentationScreenState extends State<PresentationScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildExpandedMenuItem(
-                      _isSelectionLocked() ? Icons.lock : Icons.lock_open, 
-                      _isSelectionLocked() ? 'Unlock' : 'Lock', 
-                      _toggleLockSelected
+                      _isSelectionLocked() ? Icons.lock : Icons.lock_open,
+                      _isSelectionLocked() ? 'Unlock' : 'Lock',
+                      _toggleLockSelected,
                     ),
                     _buildExpandedMenuItem(
                       Icons.line_weight,
                       'Line thickness',
-                      () => setState(() {
-                        _isThicknessSubMenuVisible = !_isThicknessSubMenuVisible;
-                        if (_isThicknessSubMenuVisible) _isColorSubMenuVisible = false;
+                          () => setState(() {
+                        _isThicknessSubMenuVisible =
+                        !_isThicknessSubMenuVisible;
+                        if (_isThicknessSubMenuVisible)
+                          _isColorSubMenuVisible = false;
                       }),
                       hasSubmenu: true,
                       isActive: _isThicknessSubMenuVisible,
@@ -1312,18 +1649,25 @@ class _PresentationScreenState extends State<PresentationScreen>
                     _buildExpandedMenuItem(
                       Icons.format_color_fill,
                       'Fill color',
-                      () => setState(() {
+                          () => setState(() {
                         _isColorSubMenuVisible = !_isColorSubMenuVisible;
-                        if (_isColorSubMenuVisible) _isThicknessSubMenuVisible = false;
+                        if (_isColorSubMenuVisible)
+                          _isThicknessSubMenuVisible = false;
                       }),
                       hasSubmenu: true,
                       isActive: _isColorSubMenuVisible,
                     ),
-                    _buildExpandedMenuItem(Icons.add_to_photos_outlined, 'Add to resource library', () {}),
-                    _buildExpandedMenuItem(Icons.link, 'Edit hyperlink', () {}),
-                    _buildExpandedMenuItem(Icons.compare_arrows, 'Mirror', () => _mirrorSelected(slideWidth, slideHeight)),
-                    _buildExpandedMenuItem(Icons.unfold_more, 'Flip', () => _flipSelected(slideWidth, slideHeight)),
-                    _buildExpandedMenuItem(Icons.copy_all, 'Copy', _duplicateSelectedElements),
+                    _buildExpandedMenuItem(
+                        Icons.add_to_photos_outlined,
+                        'Add to resource library', () {}),
+                    _buildExpandedMenuItem(
+                        Icons.link, 'Edit hyperlink', () {}),
+                    _buildExpandedMenuItem(Icons.compare_arrows, 'Mirror',
+                            () => _mirrorSelected(slideWidth, slideHeight)),
+                    _buildExpandedMenuItem(Icons.unfold_more, 'Flip',
+                            () => _flipSelected(slideWidth, slideHeight)),
+                    _buildExpandedMenuItem(
+                        Icons.copy_all, 'Copy', _duplicateSelectedElements),
                     _buildExpandedMenuItem(Icons.content_cut, 'Shear', () {}),
                   ],
                 ),
@@ -1335,34 +1679,46 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
-  Widget _buildThicknessSubMenu(Rect rect, double slideWidth, double slideHeight) {
+  Widget _buildThicknessSubMenu(
+      Rect rect, double slideWidth, double slideHeight) {
     const double toolbarWidth = 45.0;
     const double toolbarHeight = 225.0;
     const double expandedMenuWidth = 220.0;
     const double thicknessSubMenuWidth = 180.0;
     const double thicknessSubMenuHeight = 50.0;
-    const double subMenuWidth = 240.0; // Max width for color menu
+    const double subMenuWidth = 240.0;
     const double horizontalPadding = 10.0;
     const double verticalPadding = 10.0;
 
-    double totalChainWidth = toolbarWidth + horizontalPadding + expandedMenuWidth + horizontalPadding + subMenuWidth;
+    double totalChainWidth = toolbarWidth +
+        horizontalPadding +
+        expandedMenuWidth +
+        horizontalPadding +
+        subMenuWidth;
     bool hasSpaceOnRight = (rect.right + totalChainWidth + 20) < slideWidth;
-    
-    double toolbarLeft = hasSpaceOnRight ? (rect.right + horizontalPadding) : (rect.left - horizontalPadding - toolbarWidth);
-    double toolbarTop = rect.top.clamp(verticalPadding, (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
 
-    double left = hasSpaceOnRight 
+    double toolbarLeft = hasSpaceOnRight
+        ? (rect.right + horizontalPadding)
+        : (rect.left - horizontalPadding - toolbarWidth);
+    double toolbarTop = rect.top.clamp(verticalPadding,
+        (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
+
+    double left = hasSpaceOnRight
         ? (toolbarLeft + toolbarWidth + horizontalPadding + expandedMenuWidth + 5)
-        : (toolbarLeft - horizontalPadding - expandedMenuWidth - 5 - thicknessSubMenuWidth);
+        : (toolbarLeft -
+        horizontalPadding -
+        expandedMenuWidth -
+        5 -
+        thicknessSubMenuWidth);
 
-    // Dynamic Vertical Clamping
-    double top = (toolbarTop + 45.0).clamp(verticalPadding, slideHeight - thicknessSubMenuHeight - verticalPadding);
+    double top = (toolbarTop + 45.0).clamp(
+        verticalPadding, slideHeight - thicknessSubMenuHeight - verticalPadding);
 
     return Positioned(
       left: left,
       top: top,
       child: GestureDetector(
-        onTap: () {}, // Shield
+        onTap: () {},
         behavior: HitTestBehavior.opaque,
         child: Container(
           width: thicknessSubMenuWidth,
@@ -1371,7 +1727,9 @@ class _PresentationScreenState extends State<PresentationScreen>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 10)
+            ],
             border: Border.all(color: Colors.grey.shade200),
           ),
           child: Row(
@@ -1381,8 +1739,10 @@ class _PresentationScreenState extends State<PresentationScreen>
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 2,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                    thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6),
+                    overlayShape:
+                    const RoundSliderOverlayShape(overlayRadius: 12),
                   ),
                   child: Slider(
                     value: _currentSelectionThickness,
@@ -1411,7 +1771,9 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
-  Widget _buildExpandedMenuItem(IconData icon, String label, VoidCallback onTap, {bool hasSubmenu = false, bool isActive = false}) {
+  Widget _buildExpandedMenuItem(
+      IconData icon, String label, VoidCallback onTap,
+      {bool hasSubmenu = false, bool isActive = false}) {
     return InkWell(
       onTap: () {
         onTap();
@@ -1420,24 +1782,33 @@ class _PresentationScreenState extends State<PresentationScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isActive ? Colors.indigo.withOpacity(0.05) : Colors.transparent,
-          border: Border(bottom: BorderSide(color: Colors.grey.shade100, width: 0.5)),
+          color: isActive
+              ? Colors.indigo.withOpacity(0.05)
+              : Colors.transparent,
+          border: Border(
+              bottom: BorderSide(color: Colors.grey.shade100, width: 0.5)),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: isActive ? Colors.indigo : Colors.grey.shade700),
+            Icon(icon,
+                size: 18,
+                color: isActive ? Colors.indigo : Colors.grey.shade700),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
                 style: GoogleFonts.poppins(
-                  fontSize: 12, 
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: isActive ? Colors.indigo : Colors.grey.shade800,
                 ),
               ),
             ),
-            if (hasSubmenu) Icon(Icons.arrow_right, size: 16, color: isActive ? Colors.indigo : Colors.grey.shade400),
+            if (hasSubmenu)
+              Icon(Icons.arrow_right,
+                  size: 16,
+                  color:
+                  isActive ? Colors.indigo : Colors.grey.shade400),
           ],
         ),
       ),
@@ -1450,93 +1821,99 @@ class _PresentationScreenState extends State<PresentationScreen>
       return page.texts[_activeTextIndex!].isLocked;
     }
     if (_activeSelectedIndices.isNotEmpty) {
-      // If any selected stroke is locked, consider the selection locked
-      return _activeSelectedIndices.any((idx) => idx < page.strokes.length && page.strokes[idx].isLocked);
+      return _activeSelectedIndices.any(
+              (idx) => idx < page.strokes.length && page.strokes[idx].isLocked);
     }
     return false;
   }
 
   void _toggleLockSelected() {
     if (_activeSelectedIndices.isEmpty && _activeTextIndex == null) return;
-    
+
     final bool currentlyLocked = _isSelectionLocked();
-    
+
     setState(() {
       _saveToHistory();
       final page = _pages[_currentPageIndex];
-      
-      // Toggle Strokes
+
       final updatedStrokes = List<DrawingStroke>.from(page.strokes);
       for (final index in _activeSelectedIndices) {
         if (index < updatedStrokes.length) {
-          updatedStrokes[index] = updatedStrokes[index].copyWith(isLocked: !currentlyLocked);
+          updatedStrokes[index] =
+              updatedStrokes[index].copyWith(isLocked: !currentlyLocked);
         }
       }
-      
-      // Toggle Text
+
       final updatedTexts = List<DrawingText>.from(page.texts);
       if (_activeTextIndex != null && _activeTextIndex! < updatedTexts.length) {
-        updatedTexts[_activeTextIndex!] = updatedTexts[_activeTextIndex!].copyWith(isLocked: !currentlyLocked);
+        updatedTexts[_activeTextIndex!] =
+            updatedTexts[_activeTextIndex!].copyWith(isLocked: !currentlyLocked);
       }
-      
-      _pages[_currentPageIndex] = page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
+
+      _pages[_currentPageIndex] =
+          page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
 
   void _mirrorSelected(double slideWidth, double slideHeight) {
-    if ((_activeSelectedIndices.isEmpty && _activeTextIndex == null) || _activeSelectionRect == null) return;
+    if ((_activeSelectedIndices.isEmpty && _activeTextIndex == null) ||
+        _activeSelectionRect == null) return;
     setState(() {
       _saveToHistory();
       final page = _pages[_currentPageIndex];
-      
-      // Normalize center for the flip math
+
       final pixelCenter = _activeSelectionRect!.center;
-      final normalizedCenter = Offset(pixelCenter.dx / slideWidth, pixelCenter.dy / slideHeight);
-      
-      // Mirror Strokes
+      final normalizedCenter = Offset(
+          pixelCenter.dx / slideWidth, pixelCenter.dy / slideHeight);
+
       final updatedStrokes = List<DrawingStroke>.from(page.strokes);
       for (final index in _activeSelectedIndices) {
         if (index < updatedStrokes.length) {
-          updatedStrokes[index] = updatedStrokes[index].flip(true, normalizedCenter);
+          updatedStrokes[index] =
+              updatedStrokes[index].flip(true, normalizedCenter);
         }
       }
-      
-      // Mirror Text
+
       final updatedTexts = List<DrawingText>.from(page.texts);
       if (_activeTextIndex != null && _activeTextIndex! < updatedTexts.length) {
-        updatedTexts[_activeTextIndex!] = updatedTexts[_activeTextIndex!].flip(true, normalizedCenter);
+        updatedTexts[_activeTextIndex!] =
+            updatedTexts[_activeTextIndex!].flip(true, normalizedCenter);
       }
-      
-      _pages[_currentPageIndex] = page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
+
+      _pages[_currentPageIndex] =
+          page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
 
   void _flipSelected(double slideWidth, double slideHeight) {
-    if ((_activeSelectedIndices.isEmpty && _activeTextIndex == null) || _activeSelectionRect == null) return;
+    if ((_activeSelectedIndices.isEmpty && _activeTextIndex == null) ||
+        _activeSelectionRect == null) return;
     setState(() {
       _saveToHistory();
       final page = _pages[_currentPageIndex];
-      
-      final pixelCenter = _activeSelectionRect!.center;
-      final normalizedCenter = Offset(pixelCenter.dx / slideWidth, pixelCenter.dy / slideHeight);
 
-      // Flip Strokes
+      final pixelCenter = _activeSelectionRect!.center;
+      final normalizedCenter = Offset(
+          pixelCenter.dx / slideWidth, pixelCenter.dy / slideHeight);
+
       final updatedStrokes = List<DrawingStroke>.from(page.strokes);
       for (final index in _activeSelectedIndices) {
         if (index < updatedStrokes.length) {
-          updatedStrokes[index] = updatedStrokes[index].flip(false, normalizedCenter);
+          updatedStrokes[index] =
+              updatedStrokes[index].flip(false, normalizedCenter);
         }
       }
-      
-      // Flip Text
+
       final updatedTexts = List<DrawingText>.from(page.texts);
       if (_activeTextIndex != null && _activeTextIndex! < updatedTexts.length) {
-        updatedTexts[_activeTextIndex!] = updatedTexts[_activeTextIndex!].flip(false, normalizedCenter);
+        updatedTexts[_activeTextIndex!] =
+            updatedTexts[_activeTextIndex!].flip(false, normalizedCenter);
       }
-      
-      _pages[_currentPageIndex] = page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
+
+      _pages[_currentPageIndex] =
+          page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
@@ -1544,10 +1921,13 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _handleTextCreated(Offset position) {
     setState(() {
       _saveToHistory();
-      
+
       final newText = DrawingText(position: position);
-      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts)..add(newText);
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      final updatedTexts =
+      List<DrawingText>.from(_pages[_currentPageIndex].texts)
+        ..add(newText);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(texts: updatedTexts);
       _pages = List.from(_pages);
       _activeTextIndex = updatedTexts.length - 1;
       _isTextFormattingVisible = true;
@@ -1556,48 +1936,59 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   void _updateText(int index, String text) {
     setState(() {
-      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      final updatedTexts =
+      List<DrawingText>.from(_pages[_currentPageIndex].texts);
       updatedTexts[index] = updatedTexts[index].copyWith(text: text);
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
 
   void _moveText(int index, Offset delta) {
     setState(() {
-      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      final updatedTexts =
+      List<DrawingText>.from(_pages[_currentPageIndex].texts);
       updatedTexts[index] = updatedTexts[index].translate(delta);
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
 
   void _resizeTextWidth(int index, double width) {
     setState(() {
-      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
-      updatedTexts[index] = updatedTexts[index].copyWith(width: width.clamp(50.0, 2000.0));
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      final updatedTexts =
+      List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      updatedTexts[index] =
+          updatedTexts[index].copyWith(width: width.clamp(50.0, 2000.0));
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
 
   void _scaleText(int index, double width, double fontSize) {
     setState(() {
-      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      final updatedTexts =
+      List<DrawingText>.from(_pages[_currentPageIndex].texts);
       updatedTexts[index] = updatedTexts[index].copyWith(
         width: width.clamp(40.0, 2000.0),
         fontSize: fontSize,
       );
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
 
   void _updateTextElement(int index, DrawingText updated) {
     setState(() {
-      final updatedTexts = List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      final updatedTexts =
+      List<DrawingText>.from(_pages[_currentPageIndex].texts);
       updatedTexts[index] = updated;
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(texts: updatedTexts);
       _pages = List.from(_pages);
     });
   }
@@ -1605,11 +1996,13 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _updateSelectedStrokesWidth(double width) {
     if (_activeSelectedIndices.isEmpty) return;
     setState(() {
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final updatedStrokes =
+      List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
       for (final index in _activeSelectedIndices) {
         updatedStrokes[index] = updatedStrokes[index].copyWith(width: width);
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
       _pages = List.from(_pages);
     });
   }
@@ -1618,16 +2011,19 @@ class _PresentationScreenState extends State<PresentationScreen>
     if (_activeSelectedIndices.isEmpty) return;
     setState(() {
       _saveToHistory();
-      final updatedStrokes = List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
+      final updatedStrokes =
+      List<DrawingStroke>.from(_pages[_currentPageIndex].strokes);
       for (final index in _activeSelectedIndices) {
         updatedStrokes[index] = updatedStrokes[index].copyWith(color: color);
       }
-      _pages[_currentPageIndex] = _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
       _pages = List.from(_pages);
     });
   }
 
-  Widget _buildColorSubMenu(Rect rect, double slideWidth, double slideHeight) {
+  Widget _buildColorSubMenu(
+      Rect rect, double slideWidth, double slideHeight) {
     const double toolbarWidth = 45.0;
     const double toolbarHeight = 225.0;
     const double expandedMenuWidth = 220.0;
@@ -1637,22 +2033,39 @@ class _PresentationScreenState extends State<PresentationScreen>
     const double horizontalPadding = 10.0;
     const double verticalPadding = 10.0;
 
-    double totalChainWidth = toolbarWidth + horizontalPadding + expandedMenuWidth + horizontalPadding + subMenuWidth;
+    double totalChainWidth = toolbarWidth +
+        horizontalPadding +
+        expandedMenuWidth +
+        horizontalPadding +
+        subMenuWidth;
     bool hasSpaceOnRight = (rect.right + totalChainWidth + 20) < slideWidth;
-    
-    double toolbarLeft = hasSpaceOnRight ? (rect.right + horizontalPadding) : (rect.left - horizontalPadding - toolbarWidth);
-    double toolbarTop = rect.top.clamp(verticalPadding, (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
 
-    double left = hasSpaceOnRight 
+    double toolbarLeft = hasSpaceOnRight
+        ? (rect.right + horizontalPadding)
+        : (rect.left - horizontalPadding - toolbarWidth);
+    double toolbarTop = rect.top.clamp(verticalPadding,
+        (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
+
+    double left = hasSpaceOnRight
         ? (toolbarLeft + toolbarWidth + horizontalPadding + expandedMenuWidth + 5)
-        : (toolbarLeft - horizontalPadding - expandedMenuWidth - 5 - colorSubMenuWidth);
+        : (toolbarLeft -
+        horizontalPadding -
+        expandedMenuWidth -
+        5 -
+        colorSubMenuWidth);
 
-    // Dynamic Vertical Clamping
-    double top = (toolbarTop + 90.0).clamp(verticalPadding, slideHeight - colorSubMenuHeight - verticalPadding);
+    double top = (toolbarTop + 90.0).clamp(
+        verticalPadding, slideHeight - colorSubMenuHeight - verticalPadding);
 
     final List<Color> colors = [
-      Colors.red, Colors.blue, Colors.green, Colors.black, 
-      Colors.orange, Colors.purple, Colors.pink, Colors.brown
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.black,
+      Colors.orange,
+      Colors.purple,
+      Colors.pink,
+      Colors.brown,
     ];
 
     return Positioned(
@@ -1668,13 +2081,16 @@ class _PresentationScreenState extends State<PresentationScreen>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 10)
+            ],
             border: Border.all(color: Colors.grey.shade200),
           ),
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: colors.map((color) => GestureDetector(
+            children: colors
+                .map((color) => GestureDetector(
               onTap: () => _updateSelectedStrokesColor(color),
               child: Container(
                 width: 24,
@@ -1682,10 +2098,12 @@ class _PresentationScreenState extends State<PresentationScreen>
                 decoration: BoxDecoration(
                   color: color,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade300),
+                  border:
+                  Border.all(color: Colors.grey.shade300),
                 ),
               ),
-            )).toList(),
+            ))
+                .toList(),
           ),
         ),
       ),
@@ -1706,7 +2124,10 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
-  Widget _buildModeItem({required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildModeItem(
+      {required IconData icon,
+        required String label,
+        required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -1717,7 +2138,8 @@ class _PresentationScreenState extends State<PresentationScreen>
             const SizedBox(width: 12),
             Text(
               label,
-              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
+              style: GoogleFonts.poppins(
+                  fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -1765,7 +2187,8 @@ class _PresentationScreenState extends State<PresentationScreen>
             },
             child: Container(
               width: 380,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
@@ -1790,7 +2213,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                     child: const Center(
                       child: CircularProgressIndicator(
                         strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.indigo),
+                        valueColor:
+                        AlwaysStoppedAnimation<Color>(Colors.indigo),
                       ),
                     ),
                   ),
@@ -1821,7 +2245,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                         value: _loadingProgress,
                         minHeight: 8,
                         backgroundColor: Colors.indigo.withOpacity(0.1),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.indigo),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.indigo),
                       ),
                     ),
                   ],
@@ -1838,7 +2263,9 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   void _goToPage(int index) {
     setState(() => _currentPageIndex = index);
-    _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    _pageController.animateToPage(index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut);
   }
 
   void _addNewSlide() {
@@ -1857,66 +2284,29 @@ class _PresentationScreenState extends State<PresentationScreen>
   }
 
   void _nextPage() {
-    if (_currentPageIndex < _pages.length - 1) _goToPage(_currentPageIndex + 1);
+    if (_currentPageIndex < _pages.length - 1)
+      _goToPage(_currentPageIndex + 1);
   }
 
   void _showSnackBar(String message, Color color, IconData icon) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Row(children: [Icon(icon, color: Colors.white), const SizedBox(width: 8), Text(message)]),
+      content: Row(children: [
+        Icon(icon, color: Colors.white),
+        const SizedBox(width: 8),
+        Text(message)
+      ]),
       backgroundColor: color,
     ));
   }
 
-  void _showErrorDialog(String title, dynamic error) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red),
-            const SizedBox(width: 10),
-            Text(title),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('The operation failed with the following technical error:'),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  error.toString(),
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text('Please verify you have permission to write to the selected folder and that no other application is using the file.'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showBackgroundColorPicker() {
     final currentPage = _pages[_currentPageIndex];
-    final isBlankSlide = currentPage.contentPath == null || currentPage.contentPath!.isEmpty;
+    final isBlankSlide =
+        currentPage.contentPath == null || currentPage.contentPath!.isEmpty;
 
     if (!isBlankSlide) {
-      _showSnackBar('Background color only for blank slides', Colors.grey, Icons.info);
+      _showSnackBar(
+          'Background color only for blank slides', Colors.grey, Icons.info);
       return;
     }
 
@@ -1948,7 +2338,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                             color: Colors.purple.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.palette, color: Colors.purple, size: 16),
+                          child: const Icon(Icons.palette,
+                              color: Colors.purple, size: 16),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -1962,7 +2353,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                           ),
                         ),
                         IconButton(
-                          icon: Icon(Icons.close, size: 16, color: Colors.grey.shade500),
+                          icon: Icon(Icons.close,
+                              size: 16, color: Colors.grey.shade500),
                           onPressed: () => Navigator.pop(dialogContext),
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
@@ -2001,26 +2393,6 @@ class _PresentationScreenState extends State<PresentationScreen>
                       setDialogState(() => selectedColor = color);
                     }),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 5,
-                      runSpacing: 5,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        _buildQuickColorDot(Colors.white, dialogContext, (color) {
-                           setDialogState(() => selectedColor = color);
-                        }),
-                        _buildQuickColorDot(Colors.black, dialogContext, (color) {
-                           setDialogState(() => selectedColor = color);
-                        }),
-                        _buildQuickColorDot(const Color(0xFFFEEBEB), dialogContext, (color) {
-                           setDialogState(() => selectedColor = color);
-                        }),
-                        _buildQuickColorDot(const Color(0xFFE8F5E9), dialogContext, (color) {
-                           setDialogState(() => selectedColor = color);
-                        }),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -2032,7 +2404,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                         ElevatedButton(
                           onPressed: () {
                             setState(() {
-                              final updatedPage = _pages[_currentPageIndex].copyWith(
+                              final updatedPage =
+                              _pages[_currentPageIndex].copyWith(
                                 backgroundColor: selectedColor,
                               );
                               _pages[_currentPageIndex] = updatedPage;
@@ -2054,7 +2427,8 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
-  Widget _buildColorPalette(Color currentColor, Function(Color) onColorChanged) {
+  Widget _buildColorPalette(
+      Color currentColor, Function(Color) onColorChanged) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -2063,9 +2437,12 @@ class _PresentationScreenState extends State<PresentationScreen>
 
         return GestureDetector(
           onPanUpdate: (details) {
-            final dx = (details.localPosition.dx / width).clamp(0.0, 1.0);
-            final dy = (details.localPosition.dy / height).clamp(0.0, 1.0);
-            final newColor = HSVColor.fromAHSV(1.0, hsv.hue, dx, 1.0 - dy).toColor();
+            final dx =
+            (details.localPosition.dx / width).clamp(0.0, 1.0);
+            final dy =
+            (details.localPosition.dy / height).clamp(0.0, 1.0);
+            final newColor =
+            HSVColor.fromAHSV(1.0, hsv.hue, dx, 1.0 - dy).toColor();
             onColorChanged(newColor);
           },
           child: Container(
@@ -2080,7 +2457,8 @@ class _PresentationScreenState extends State<PresentationScreen>
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    color: HSVColor.fromAHSV(1.0, hsv.hue, 1.0, 1.0).toColor(),
+                    color: HSVColor.fromAHSV(1.0, hsv.hue, 1.0, 1.0)
+                        .toColor(),
                   ),
                 ),
                 Container(
@@ -2123,7 +2501,8 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
-  Widget _buildHueSlider(Color currentColor, Function(Color) onColorChanged) {
+  Widget _buildHueSlider(
+      Color currentColor, Function(Color) onColorChanged) {
     final currentHue = HSVColor.fromColor(currentColor).hue;
 
     return LayoutBuilder(
@@ -2132,9 +2511,12 @@ class _PresentationScreenState extends State<PresentationScreen>
 
         return GestureDetector(
           onPanUpdate: (details) {
-            final hue = (details.localPosition.dx / width * 360).clamp(0.0, 360.0);
+            final hue = (details.localPosition.dx / width * 360)
+                .clamp(0.0, 360.0);
             final hsv = HSVColor.fromColor(currentColor);
-            onColorChanged(HSVColor.fromAHSV(1.0, hue, hsv.saturation, hsv.value).toColor());
+            onColorChanged(HSVColor.fromAHSV(1.0, hue, hsv.saturation,
+                hsv.value)
+                .toColor());
           },
           child: Container(
             height: 24,
@@ -2174,25 +2556,10 @@ class _PresentationScreenState extends State<PresentationScreen>
     );
   }
 
-  Widget _buildQuickColorDot(Color color, BuildContext dialogContext, Function(Color) onColorSelected) {
-    return GestureDetector(
-      onTap: () => onColorSelected(color),
-      child: Container(
-        width: 26,
-        height: 26,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade300, width: 1),
-        ),
-      ),
-    );
-  }
-
   String _generateExportFileName() {
     final now = DateTime.now();
-    final timestamp = "${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}";
+    final timestamp =
+        "${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}";
     return "${_sourceFileName}_$timestamp";
   }
 }
