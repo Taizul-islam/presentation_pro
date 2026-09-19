@@ -31,56 +31,69 @@ jobs:
       - name: Build Windows EXE
         run: flutter build windows --release
 
-      - name: Install LibreOffice via winget
-        shell: pwsh
-        run: |
-          winget install --id TheDocumentFoundation.LibreOffice -e --accept-package-agreements --accept-source-agreements
+      # ---------- LibreOffice (administrative install, no winget) ----------
+      - name: Cache LibreOffice MSI
+        uses: actions/cache@v4
+        id: cache-libreoffice
+        with:
+          path: LibreOffice.msi
+          key: libreoffice-msi-26.2.4
 
-      - name: Copy LibreOffice
+      - name: Download LibreOffice MSI
+        if: steps.cache-libreoffice.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $buildDir = "build\windows\x64\runner\Release"
-          $loDir = "$buildDir\tools\libreoffice"
-          New-Item -ItemType Directory -Path $loDir -Force
-          
-          $possiblePaths = @(
-            "C:\Program Files\LibreOffice",
-            "C:\Program Files (x86)\LibreOffice"
-          )
-          
-          $found = $false
-          foreach ($path in $possiblePaths) {
-            if (Test-Path "$path\program\soffice.exe") {
-              Write-Host "Found LibreOffice at: $path"
-              Copy-Item -Path "$path\*" -Destination $loDir -Recurse -Force
-              $found = $true
-              break
-            }
-          }
-          
-          if (-not $found) {
-            Write-Host "ERROR: LibreOffice not found after winget install"
-            exit 1
-          }
-          
-          Write-Host "LibreOffice copied."
+          $url = "https://download.documentfoundation.org/libreoffice/stable/26.2.4/win/x86_64/LibreOffice_26.2.4_Win_x86-64.msi"
+          Write-Host "Downloading LibreOffice MSI..."
+          Invoke-WebRequest -Uri $url -OutFile "LibreOffice.msi"
+          Write-Host "Downloaded: $((Get-Item LibreOffice.msi).Length / 1MB) MB"
+
+      - name: Extract LibreOffice (administrative install)
+        shell: cmd
+        run: |
+          set LO_DIR=%CD%\build\windows\x64\runner\Release\tools\libreoffice
+          if not exist "%LO_DIR%" mkdir "%LO_DIR%"
+          echo Extracting LibreOffice to %LO_DIR%...
+          msiexec /a "%CD%\LibreOffice.msi" TARGETDIR="%LO_DIR%" /qn /norestart
+          echo Done.
+
+      # ---------- Poppler (cached) ----------
+      - name: Cache Poppler ZIP
+        uses: actions/cache@v4
+        id: cache-poppler
+        with:
+          path: poppler.zip
+          key: poppler-24.08.0
 
       - name: Download Poppler
+        if: steps.cache-poppler.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $url = "https://github.com/oschwartz10612/poppler-windows/releases/download/v24.08.0-0/Release-24.08.0-0.zip"
+          Write-Host "Downloading Poppler..."
           Invoke-WebRequest -Uri $url -OutFile "poppler.zip"
+          Write-Host "Downloaded: $((Get-Item poppler.zip).Length / 1MB) MB"
 
       - name: Extract Poppler
         shell: pwsh
         run: |
+          Write-Host "Extracting Poppler..."
           Expand-Archive -Path "poppler.zip" -DestinationPath "poppler_extracted" -Force
+
           $popplerDir = Get-ChildItem "poppler_extracted" -Directory | Select-Object -First 1
           $binDir = Get-ChildItem $popplerDir.FullName -Recurse -Directory -Filter "bin" | Select-Object -First 1
+
+          if (-not $binDir) {
+            Write-Host "FAIL: bin directory not found inside Poppler"
+            exit 1
+          }
+
           $destDir = "build\windows\x64\runner\Release\tools\poppler"
           New-Item -ItemType Directory -Path $destDir -Force
           Copy-Item -Path "$($binDir.FullName)\*" -Destination $destDir -Recurse -Force
+          Write-Host "Poppler copied to: $destDir"
 
+      # ---------- pdfium.dll ----------
       - name: Copy pdfium.dll
         shell: pwsh
         run: |
@@ -89,15 +102,20 @@ jobs:
             $pdfium = Get-ChildItem $buildDir -Recurse -Filter "pdfium.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($pdfium) {
               Copy-Item $pdfium.FullName -Destination "$buildDir\" -Force
+              Write-Host "Copied pdfium.dll"
+            } else {
+              Write-Host "WARN: pdfium.dll not found anywhere in build output"
             }
+          } else {
+            Write-Host "pdfium.dll already present"
           }
 
+      # ---------- Verify ----------
       - name: Verify files
         shell: pwsh
         run: |
           $buildDir = "build\windows\x64\runner\Release"
 
-          # Auto-detect the main exe (excludes helper exes)
           $mainExe = Get-ChildItem $buildDir -Filter "*.exe" | 
                      Where-Object { $_.Name -notmatch "flutter_windows|crashpad" } | 
                      Select-Object -First 1
@@ -107,26 +125,38 @@ jobs:
             Get-ChildItem $buildDir -Filter "*.exe" | ForEach-Object { Write-Host "  $($_.Name)" }
             exit 1
           }
-
           Write-Host "Main exe: $($mainExe.Name)"
 
           if (-not (Test-Path "$buildDir\pdfium.dll")) {
             Write-Host "FAIL: pdfium.dll missing"
             exit 1
           }
+          Write-Host "pdfium.dll: OK"
 
           $soffice = Get-ChildItem "$buildDir\tools" -Recurse -Filter "soffice.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           $pdftoppm = Get-ChildItem "$buildDir\tools" -Recurse -Filter "pdftoppm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 
-          if (-not $soffice) { Write-Host "FAIL: soffice.exe"; exit 1 }
-          if (-not $pdftoppm) { Write-Host "FAIL: pdftoppm.exe"; exit 1 }
+          if (-not $soffice) { Write-Host "FAIL: soffice.exe not found"; exit 1 }
+          Write-Host "soffice.exe: $($soffice.FullName)"
+
+          if (-not $pdftoppm) { Write-Host "FAIL: pdftoppm.exe not found"; exit 1 }
+          Write-Host "pdftoppm.exe: $($pdftoppm.FullName)"
+
+          # Report total size
+          $totalSize = (Get-ChildItem $buildDir -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
+          Write-Host ("Total build size: {0:N1} MB" -f $totalSize)
 
           Write-Host "All files verified."
 
+      # ---------- Package ----------
       - name: Create ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "PresentationPro_Portable.zip"
+          $zipName = "PresentationPro_Portable.zip"
+          Write-Host "Creating $zipName..."
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath $zipName -Force
+          $size = (Get-Item $zipName).Length / 1MB
+          Write-Host ("ZIP size: {0:N1} MB" -f $size)
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
