@@ -37,13 +37,13 @@ jobs:
         id: cache-libreoffice
         with:
           path: LibreOffice.msi
-          key: libreoffice-msi-26.2.4
+          key: libreoffice-msi-26.2.4.2
 
       - name: Download LibreOffice MSI
         if: steps.cache-libreoffice.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $url = "https://download.documentfoundation.org/libreoffice/stable/26.2.4/win/x86_64/LibreOffice_26.2.4_Win_x86-64.msi"
+          $url = "https://downloadarchive.documentfoundation.org/libreoffice/old/26.2.4.2/win/x86_64/LibreOffice_26.2.4.2_Win_x86-64.msi"
           Write-Host "Downloading LibreOffice MSI..."
           Invoke-WebRequest -Uri $url -OutFile "LibreOffice.msi"
           Write-Host "Downloaded: $((Get-Item LibreOffice.msi).Length / 1MB) MB"
