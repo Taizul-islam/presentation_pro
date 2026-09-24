@@ -137,6 +137,7 @@ class SlideThumbnail extends StatelessWidget {
             File(page.contentPath!),
             fit: BoxFit.contain,
             cacheHeight: 300,
+            filterQuality: FilterQuality.medium,
             errorBuilder: (context, error, stackTrace) {
               return Center(
                 child: Column(
@@ -195,7 +196,7 @@ class SlideThumbnail extends StatelessWidget {
           child: PdfPageView(
             document: pdfDocument!,
             pageNumber: (page.pdfPageIndex ?? 0) + 1,
-            maximumDpi: 100,
+            maximumDpi: 180,
           ),
         );
 
@@ -279,8 +280,11 @@ class _ThumbnailPainter extends CustomPainter {
   void _drawSingleStroke(Canvas canvas, DrawingStroke stroke, Size size) {
     if (stroke.points.length < 2) return;
 
+    final double widthScale = size.width / 1920.0;
+    final double calculatedWidth = (stroke.width * widthScale).clamp(1.2, 50.0);
+
     final paint = Paint()
-      ..strokeWidth = (stroke.width * (size.width / 1920)).clamp(0.5, 3.0)
+      ..strokeWidth = calculatedWidth
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke
@@ -294,16 +298,34 @@ class _ThumbnailPainter extends CustomPainter {
 
     if (stroke.tool == DrawingTool.highlighter) {
       paint.color = stroke.color.withOpacity(0.3);
-      paint.strokeWidth *= 2;
+      paint.strokeWidth = calculatedWidth * 2;
     }
 
-    final path = Path();
-    path.moveTo(
-        stroke.points[0].dx * size.width, stroke.points[0].dy * size.height);
-    for (int i = 1; i < stroke.points.length; i++) {
-      path.lineTo(stroke.points[i].dx * size.width,
-          stroke.points[i].dy * size.height);
+    final path = Path()
+      ..moveTo(stroke.points[0].dx * size.width, stroke.points[0].dy * size.height);
+
+    if (stroke.points.length == 2) {
+      path.lineTo(
+          stroke.points[1].dx * size.width, stroke.points[1].dy * size.height);
+    } else {
+      for (int i = 1; i < stroke.points.length - 1; i++) {
+        final midPoint = Offset(
+          ((stroke.points[i].dx + stroke.points[i + 1].dx) / 2) * size.width,
+          ((stroke.points[i].dy + stroke.points[i + 1].dy) / 2) * size.height,
+        );
+        path.quadraticBezierTo(
+          stroke.points[i].dx * size.width,
+          stroke.points[i].dy * size.height,
+          midPoint.dx,
+          midPoint.dy,
+        );
+      }
+      path.lineTo(
+        stroke.points.last.dx * size.width,
+        stroke.points.last.dy * size.height,
+      );
     }
+
     canvas.drawPath(path, paint);
   }
 

@@ -274,17 +274,36 @@ class ExportService {
           paint.strokeWidth *= 3;
         }
 
-        final path = Path();
-        path.moveTo(
-          stroke.points[0].dx * targetWidth,
-          stroke.points[0].dy * targetHeight,
-        );
-        for (int i = 1; i < stroke.points.length; i++) {
+        final path = Path()
+          ..moveTo(
+            stroke.points[0].dx * targetWidth,
+            stroke.points[0].dy * targetHeight,
+          );
+
+        if (stroke.points.length == 2) {
           path.lineTo(
-            stroke.points[i].dx * targetWidth,
-            stroke.points[i].dy * targetHeight,
+            stroke.points[1].dx * targetWidth,
+            stroke.points[1].dy * targetHeight,
+          );
+        } else {
+          for (int i = 1; i < stroke.points.length - 1; i++) {
+            final midPoint = Offset(
+              ((stroke.points[i].dx + stroke.points[i + 1].dx) / 2) * targetWidth,
+              ((stroke.points[i].dy + stroke.points[i + 1].dy) / 2) * targetHeight,
+            );
+            path.quadraticBezierTo(
+              stroke.points[i].dx * targetWidth,
+              stroke.points[i].dy * targetHeight,
+              midPoint.dx,
+              midPoint.dy,
+            );
+          }
+          path.lineTo(
+            stroke.points.last.dx * targetWidth,
+            stroke.points.last.dy * targetHeight,
           );
         }
+
         canvas.drawPath(path, paint);
       }
 

@@ -1039,6 +1039,7 @@ $stackString
           child: PdfPageView(
             document: _currentPdfDocument!,
             pageNumber: page.pdfPageIndex! + 1,
+            maximumDpi: 300,
           ),
         );
       case PageContentType.image:
@@ -1047,6 +1048,7 @@ $stackString
         return Image.file(
           File(page.contentPath!),
           fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
           errorBuilder: (context, error, stack) => _buildPlaceholder(page),
         );
       default:

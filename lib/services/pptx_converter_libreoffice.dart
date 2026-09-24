@@ -118,9 +118,9 @@ class PptxConverterLibreOffice {
     return pdfFiles.first.path;
   }
 
-  /// Converts PDF to JPEG images at 100 DPI.
-  /// JPEG at 100 DPI is 5-10x smaller than PNG at 150 DPI while still
-  /// looking sharp on any screen.
+  /// Converts PDF to high-definition JPEG images at 180 DPI with quality 90.
+  /// 180 DPI renders slides at ~1800x1012 resolution (Full HD 1080p density),
+  /// producing razor-sharp text and graphics while keeping file size small (~200 KB per slide).
   static Future<List<String>> _convertPdfToImagesWithPoppler(
       String pdfPath,
       Directory outputDir,
@@ -129,10 +129,10 @@ class PptxConverterLibreOffice {
       ) async {
     final prefix = '${outputDir.path}/slide';
 
-    // CHANGED: -jpeg instead of -png, 100 DPI instead of 150 DPI
+    // High-definition conversion: JPEG at 180 DPI, 90% quality via -jpegopt quality=90
     final result = await Process.run(
       pdftoppmPath,
-      ['-jpeg', '-r', '100', pdfPath, prefix],
+      ['-jpeg', '-jpegopt', 'quality=90', '-r', '180', pdfPath, prefix],
     );
 
     if (result.exitCode != 0) {
