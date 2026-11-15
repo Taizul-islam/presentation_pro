@@ -10,6 +10,12 @@ enum DrawingTool {
   text,
 }
 
+enum DusterType {
+  feltBlock, // Classic 2:1 rectangular wooden/felt duster
+  sponge,    // Soft rounded microfiber sponge
+  precision, // Precision circular tip eraser
+}
+
 enum PageContentType {
   placeholder,
   image,
@@ -22,6 +28,7 @@ class DrawingStroke {
   final Color color;
   final double width;
   final DrawingTool tool;
+  final DusterType dusterType;
   final bool isLocked;
 
   DrawingStroke({
@@ -29,6 +36,7 @@ class DrawingStroke {
     required this.color,
     required this.width,
     required this.tool,
+    this.dusterType = DusterType.feltBlock,
     this.isLocked = false,
   });
 
@@ -56,6 +64,7 @@ class DrawingStroke {
       color: color,
       width: width,
       tool: tool,
+      dusterType: dusterType,
       isLocked: isLocked,
     );
   }
@@ -71,6 +80,7 @@ class DrawingStroke {
       color: color,
       width: width, 
       tool: tool,
+      dusterType: dusterType,
       isLocked: isLocked,
     );
   }
@@ -93,6 +103,7 @@ class DrawingStroke {
       color: color,
       width: width,
       tool: tool,
+      dusterType: dusterType,
       isLocked: isLocked,
     );
   }
@@ -108,6 +119,7 @@ class DrawingStroke {
       color: color,
       width: width,
       tool: tool,
+      dusterType: dusterType,
       isLocked: isLocked,
     );
   }
@@ -117,6 +129,7 @@ class DrawingStroke {
     Color? color,
     double? width,
     DrawingTool? tool,
+    DusterType? dusterType,
     bool? isLocked,
   }) {
     return DrawingStroke(
@@ -124,6 +137,7 @@ class DrawingStroke {
       color: color ?? this.color,
       width: width ?? this.width,
       tool: tool ?? this.tool,
+      dusterType: dusterType ?? this.dusterType,
       isLocked: isLocked ?? this.isLocked,
     );
   }

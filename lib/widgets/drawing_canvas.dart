@@ -9,6 +9,7 @@ class DrawingCanvas extends StatefulWidget {
   final double strokeWidth;
   final double eraserWidth;
   final DrawingTool selectedTool;
+  final DusterType selectedDusterType;
   final Offset? hoverPosition;
   final Function(Offset) onStrokeStart;
   final Function(Offset) onStrokeUpdate;
@@ -29,6 +30,7 @@ class DrawingCanvas extends StatefulWidget {
     required this.strokeWidth,
     required this.eraserWidth,
     required this.selectedTool,
+    this.selectedDusterType = DusterType.feltBlock,
     required this.hoverPosition,
     required this.onStrokeStart,
     required this.onStrokeUpdate,
@@ -157,6 +159,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
                 strokeWidth: widget.strokeWidth,
                 eraserWidth: widget.eraserWidth,
                 tool: widget.selectedTool,
+                dusterType: widget.selectedDusterType,
                 hoverPosition: widget.hoverPosition,
                 selectionRect: _selectionRect,
                 selectedIndices: _selectedIndices,
@@ -416,6 +419,7 @@ class DrawingPainter extends CustomPainter {
   final double strokeWidth;
   final double eraserWidth;
   final DrawingTool tool;
+  final DusterType dusterType;
   final Offset? hoverPosition;
   final Rect? selectionRect;
   final List<int> selectedIndices;
@@ -435,6 +439,7 @@ class DrawingPainter extends CustomPainter {
     required this.strokeWidth,
     required this.eraserWidth,
     required this.tool,
+    this.dusterType = DusterType.feltBlock,
     required this.hoverPosition,
     this.selectionRect,
     this.selectedIndices = const [],
@@ -506,14 +511,9 @@ class DrawingPainter extends CustomPainter {
       }
     }
 
-    // Draw Eraser Preview
+    // Draw Realistic Duster Cursor Preview
     if (tool == DrawingTool.eraser && hoverPosition != null) {
-      final previewPaint = Paint()
-        ..color = Colors.indigo.withOpacity(0.4)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5;
-      canvas.drawCircle(hoverPosition!, eraserWidth / 2, previewPaint);
-      canvas.drawCircle(hoverPosition!, 1.5, previewPaint..style = PaintingStyle.fill);
+      _drawDusterCursor(canvas, hoverPosition!, eraserWidth, dusterType);
     }
   }
 
@@ -624,6 +624,7 @@ class DrawingPainter extends CustomPainter {
       color: stroke.color,
       width: stroke.width * widthScale,
       tool: stroke.tool,
+      dusterType: stroke.dusterType,
       isLocked: stroke.isLocked,
     );
   }
@@ -666,8 +667,11 @@ class DrawingPainter extends CustomPainter {
     // True Eraser: Clear the pixels instead of painting white
     if (stroke.tool == DrawingTool.eraser) {
       paint.blendMode = BlendMode.clear;
-      // Eraser size is fixed during the stroke based on what was selected
-      // stroke.width will already be set to eraserWidth by the caller
+      if (stroke.dusterType == DusterType.feltBlock) {
+        paint.strokeWidth = stroke.width * 1.8;
+      } else if (stroke.dusterType == DusterType.sponge) {
+        paint.strokeWidth = stroke.width * 1.4;
+      }
     }
 
     // Highlighter effect
@@ -698,6 +702,133 @@ class DrawingPainter extends CustomPainter {
     }
 
     canvas.drawPath(path, paint);
+  }
+
+  void _drawDusterCursor(Canvas canvas, Offset center, double size, DusterType type) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+
+    switch (type) {
+      case DusterType.feltBlock:
+        // 2:1 Rectangular Felt Duster Block
+        final double width = size * 1.8;
+        final double height = size * 0.9;
+        final rect = Rect.fromCenter(center: Offset.zero, width: width, height: height);
+
+        // Drop shadow
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect.shift(const Offset(2, 3)), const Radius.circular(6)),
+          Paint()
+            ..color = Colors.black26
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        );
+
+        // Felt Layer (dark felt bottom)
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(6)),
+          Paint()..color = const Color(0xFF3E2723),
+        );
+
+        // Wooden Handle Top Layer
+        final topRect = Rect.fromLTWH(-width / 2, -height / 2, width, height * 0.7);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(topRect, const Radius.circular(5)),
+          Paint()..color = const Color(0xFFD7CCC8),
+        );
+
+        // Wooden Grain Accent Line
+        final accentRect = Rect.fromLTWH(-width * 0.3, -height * 0.35, width * 0.6, height * 0.25);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(accentRect, const Radius.circular(3)),
+          Paint()..color = const Color(0xFFA1887F),
+        );
+
+        // Outer Border
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(6)),
+          Paint()
+            ..color = Colors.amber.shade900
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+        break;
+
+      case DusterType.sponge:
+        // Rounded Microfiber / Sponge Block
+        final double width = size * 1.5;
+        final double height = size * 1.0;
+        final rect = Rect.fromCenter(center: Offset.zero, width: width, height: height);
+
+        // Shadow
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect.shift(const Offset(2, 3)), const Radius.circular(12)),
+          Paint()
+            ..color = Colors.black26
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        );
+
+        // Sponge Base (Teal/Cyan Sponge)
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(12)),
+          Paint()..color = Colors.teal.shade300,
+        );
+
+        // Sponge Top Layer
+        final innerRect = rect.deflate(3);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(innerRect, const Radius.circular(9)),
+          Paint()..color = Colors.teal.shade100,
+        );
+
+        // Texture Dots
+        final dotPaint = Paint()..color = Colors.teal.shade600;
+        canvas.drawCircle(const Offset(-10, -5), 2.5, dotPaint);
+        canvas.drawCircle(const Offset(8, -8), 2.0, dotPaint);
+        canvas.drawCircle(const Offset(-4, 6), 3.0, dotPaint);
+        canvas.drawCircle(const Offset(12, 4), 2.2, dotPaint);
+
+        // Outer Border
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(12)),
+          Paint()
+            ..color = Colors.teal.shade800
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+        break;
+
+      case DusterType.precision:
+        // Precision Circular Tip Eraser
+        final radius = size / 2;
+        // Outer Shadow Circle
+        canvas.drawCircle(
+          const Offset(1, 2),
+          radius,
+          Paint()
+            ..color = Colors.black26
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+        );
+        // Circle Fill
+        canvas.drawCircle(
+          Offset.zero,
+          radius,
+          Paint()..color = Colors.indigo.withOpacity(0.2),
+        );
+        // Circle Border
+        canvas.drawCircle(
+          Offset.zero,
+          radius,
+          Paint()
+            ..color = Colors.indigo
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+        // Center Dot
+        canvas.drawCircle(Offset.zero, 2.0, Paint()..color = Colors.indigo);
+        break;
+    }
+
+    canvas.restore();
   }
 
   @override

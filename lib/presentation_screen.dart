@@ -14,6 +14,7 @@ import '../widgets/samsung_menu_item.dart';
 import '../widgets/drawing_text_widget.dart';
 import '../widgets/text_formatting_dialog.dart';
 import '../widgets/color_picker.dart';
+import '../widgets/duster_selector.dart';
 import '../services/pptx_converter_libreoffice.dart';
 import '../services/export_service.dart';
 
@@ -49,6 +50,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   double _strokeWidth = 4.0;
   double _eraserWidth = 30.0;
   DrawingTool _selectedTool = DrawingTool.pen;
+  DusterType _selectedDusterType = DusterType.feltBlock;
   Offset? _hoverPosition;
 
   int _currentPageIndex = 0;
@@ -132,6 +134,7 @@ class _PresentationScreenState extends State<PresentationScreen>
         color: _selectedColor,
         width: _selectedTool == DrawingTool.eraser ? _eraserWidth : _strokeWidth,
         tool: _selectedTool,
+        dusterType: _selectedDusterType,
       );
     });
   }
@@ -746,9 +749,25 @@ $stackString
               bottom: 0,
               child: _buildBottomLeftMenu(),
             ),
+          if (_isDrawingMode && _selectedTool == DrawingTool.eraser)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 60,
+              child: Center(
+                child: RealDusterToolbar(
+                  selectedDusterType: _selectedDusterType,
+                  dusterSize: _eraserWidth,
+                  onDusterTypeChanged: (type) =>
+                      setState(() => _selectedDusterType = type),
+                  onDusterSizeChanged: (size) =>
+                      setState(() => _eraserWidth = size),
+                  onClearSlide: _clearStrokes,
+                ),
+              ),
+            ),
           if (_isDrawingMode &&
               (_selectedTool == DrawingTool.pen ||
-                  _selectedTool == DrawingTool.eraser ||
                   _selectedTool == DrawingTool.highlighter))
             Positioned(
               left: 0,
@@ -758,22 +777,13 @@ $stackString
                 child: SizedBox(
                   width: 300,
                   child: StrokeWidthSlider(
-                    strokeWidth: _selectedTool == DrawingTool.eraser
-                        ? _eraserWidth
-                        : _strokeWidth,
+                    strokeWidth: _strokeWidth,
                     selectedColor: _selectedColor,
-                    onStrokeWidthChanged: (width) => setState(() {
-                      if (_selectedTool == DrawingTool.eraser) {
-                        _eraserWidth = width;
-                      } else {
-                        _strokeWidth = width;
-                      }
-                    }),
-                    min: _selectedTool == DrawingTool.eraser ? 10.0 : 1.0,
-                    max: _selectedTool == DrawingTool.eraser ? 100.0 : 15.0,
-                    label: _selectedTool == DrawingTool.eraser
-                        ? 'Duster Size'
-                        : 'Stroke Width',
+                    onStrokeWidthChanged: (width) =>
+                        setState(() => _strokeWidth = width),
+                    min: 1.0,
+                    max: 15.0,
+                    label: 'Stroke Width',
                   ),
                 ),
               ),
@@ -872,6 +882,7 @@ $stackString
                   strokeWidth: _strokeWidth,
                   eraserWidth: _eraserWidth,
                   selectedTool: _selectedTool,
+                  selectedDusterType: _selectedDusterType,
                   hoverPosition: isCurrentPage ? _hoverPosition : null,
                   onStrokeStart: _startStroke,
                   onStrokeUpdate: _updateStroke,
