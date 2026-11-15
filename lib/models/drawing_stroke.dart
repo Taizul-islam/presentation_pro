@@ -8,6 +8,12 @@ enum DrawingTool {
   selector,
   hand,
   text,
+  handwriting,
+}
+
+enum HandwritingLanguage {
+  english,
+  bangla,
 }
 
 enum DusterType {

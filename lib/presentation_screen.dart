@@ -15,8 +15,10 @@ import '../widgets/drawing_text_widget.dart';
 import '../widgets/text_formatting_dialog.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/duster_selector.dart';
+import '../widgets/handwriting_toolbar.dart';
 import '../services/pptx_converter_libreoffice.dart';
 import '../services/export_service.dart';
+import '../services/handwriting_recognizer.dart';
 
 enum AppMode { preparation, teaching, desktop }
 
@@ -52,6 +54,8 @@ class _PresentationScreenState extends State<PresentationScreen>
   DrawingTool _selectedTool = DrawingTool.pen;
   DusterType _selectedDusterType = DusterType.feltBlock;
   DusterOrientation _selectedDusterOrientation = DusterOrientation.rightHand;
+  HandwritingLanguage _selectedHandwritingLang = HandwritingLanguage.english;
+  String _liveRecognizedText = '';
   bool _isAutoHandDusterEnabled = true;
   bool _isHandDusterActive = false;
   DrawingTool? _previousToolBeforeHandDuster;
@@ -209,12 +213,95 @@ class _PresentationScreenState extends State<PresentationScreen>
             _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
         _currentStroke = null;
         _pages = List.from(_pages);
+
+        if (_selectedTool == DrawingTool.handwriting) {
+          _updateHandwritingRecognition();
+        }
       });
     } else {
       setState(() {
         _currentStroke = null;
       });
     }
+  }
+
+  void _updateHandwritingRecognition() {
+    final currentPage = _pages[_currentPageIndex];
+    final handwritingStrokes = currentPage.strokes
+        .where((s) => s.tool == DrawingTool.handwriting)
+        .toList();
+    if (handwritingStrokes.isNotEmpty) {
+      final res = HandwritingRecognizerService.recognizeStrokes(
+        handwritingStrokes,
+        _selectedHandwritingLang,
+      );
+      _liveRecognizedText = res.text;
+    }
+  }
+
+  void _convertHandwritingToText() {
+    final currentPage = _pages[_currentPageIndex];
+    final handwritingStrokes = currentPage.strokes
+        .where((s) => s.tool == DrawingTool.handwriting)
+        .toList();
+
+    if (handwritingStrokes.isEmpty) return;
+
+    final result = HandwritingRecognizerService.recognizeStrokes(
+      handwritingStrokes,
+      _selectedHandwritingLang,
+    );
+
+    if (result.text.trim().isEmpty) return;
+
+    _saveToHistory();
+
+    final remainingStrokes = currentPage.strokes
+        .where((s) => s.tool != DrawingTool.handwriting)
+        .toList();
+
+    final isBangla = _selectedHandwritingLang == HandwritingLanguage.bangla;
+    final newText = DrawingText(
+      text: result.text,
+      position: Offset(
+        result.boundingBox.left * 1920.0,
+        result.boundingBox.top * 1080.0,
+      ),
+      width: (result.boundingBox.width * 1920.0).clamp(160.0, 1000.0),
+      fontSize: 32,
+      fontFamily: isBangla ? 'Tiro Bangla' : 'Poppins',
+      color: _selectedColor,
+    );
+
+    final updatedTexts = List<DrawingText>.from(currentPage.texts)..add(newText);
+
+    setState(() {
+      _pages[_currentPageIndex] = currentPage.copyWith(
+        strokes: remainingStrokes,
+        texts: updatedTexts,
+      );
+      _pages = List.from(_pages);
+      _liveRecognizedText = '';
+    });
+
+    _showSnackBar(
+      'Handwriting converted to text: "${result.text}"',
+      Colors.teal.shade700,
+      Icons.spellcheck,
+    );
+  }
+
+  void _clearHandwritingInk() {
+    final currentPage = _pages[_currentPageIndex];
+    final remainingStrokes = currentPage.strokes
+        .where((s) => s.tool != DrawingTool.handwriting)
+        .toList();
+
+    setState(() {
+      _pages[_currentPageIndex] = currentPage.copyWith(strokes: remainingStrokes);
+      _pages = List.from(_pages);
+      _liveRecognizedText = '';
+    });
   }
 
   void _saveToHistory() {
@@ -841,6 +928,24 @@ $stackString
                 ),
               ),
             ),
+          if (_isDrawingMode && _selectedTool == DrawingTool.handwriting)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 60,
+              child: Center(
+                child: HandwritingControlPanel(
+                  selectedLanguage: _selectedHandwritingLang,
+                  recognizedText: _liveRecognizedText,
+                  onLanguageChanged: (lang) {
+                    setState(() => _selectedHandwritingLang = lang);
+                    _updateHandwritingRecognition();
+                  },
+                  onConvert: _convertHandwritingToText,
+                  onClearInk: _clearHandwritingInk,
+                ),
+              ),
+            ),
           if (_isDrawingMode)
             Positioned(
               left: 0,
@@ -1246,6 +1351,8 @@ $stackString
                 _selectedTool == DrawingTool.hand),
             _buildToolbarIcon(Icons.highlight, DrawingTool.highlighter,
                 _selectedTool == DrawingTool.highlighter),
+            _buildToolbarIcon(Icons.spellcheck, DrawingTool.handwriting,
+                _selectedTool == DrawingTool.handwriting),
             IconButton(
               icon: Icon(
                 Icons.back_hand_outlined,
