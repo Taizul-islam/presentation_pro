@@ -124,20 +124,19 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
                 widget.onTextCreated?.call(Offset(pos.dx / canvasSize.width, pos.dy / canvasSize.height));
               } else {
                 _isDrawing = true;
-                widget.onHoverUpdate(null);
+                widget.onHoverUpdate(pos);
                 // Pass normalized position to parent
                 widget.onStrokeStart(Offset(pos.dx / canvasSize.width, pos.dy / canvasSize.height));
               }
             },
             onPointerMove: (PointerMoveEvent event) {
               final pos = event.localPosition;
+              widget.onHoverUpdate(pos);
               if (widget.selectedTool == DrawingTool.selector) {
                 _handleSelectionUpdate(pos);
               } else if (_isDrawing) {
                 // Pass normalized position to parent
                 widget.onStrokeUpdate(Offset(pos.dx / canvasSize.width, pos.dy / canvasSize.height));
-              } else {
-                widget.onHoverUpdate(pos);
               }
             },
             onPointerUp: (PointerUpEvent event) {
