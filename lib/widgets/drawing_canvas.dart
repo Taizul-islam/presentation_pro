@@ -57,6 +57,10 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   bool _isMoving = false;
   Size? _lastCanvasSize;
 
+  // Duster direction state
+  double _dusterAngle = 0.0;
+  Offset? _lastPointerPos;
+
   // Scaling state
   int? _activeHandleIndex; // 0: TL, 1: TR, 2: BL, 3: BR
   Offset? _scalePivot;
@@ -67,6 +71,20 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   bool _isRotating = false;
   double _rotationAngle = 0.0;
   Offset? _rotationCenter;
+
+  void _updateDusterAngle(Offset pos) {
+    if (_lastPointerPos != null) {
+      final delta = pos - _lastPointerPos!;
+      if (delta.distance > 2.0) {
+        final targetAngle = math.atan2(delta.dy, delta.dx);
+        double diff = (targetAngle - _dusterAngle) % (2 * math.pi);
+        if (diff > math.pi) diff -= 2 * math.pi;
+        if (diff < -math.pi) diff += 2 * math.pi;
+        _dusterAngle += diff * 0.35;
+      }
+    }
+    _lastPointerPos = pos;
+  }
 
   @override
   void didUpdateWidget(DrawingCanvas oldWidget) {
@@ -108,15 +126,20 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
         
         return MouseRegion(
           onHover: (event) {
+            _updateDusterAngle(event.localPosition);
             if (!_isDrawing && !_isMoving) {
               widget.onHoverUpdate(event.localPosition);
             }
           },
-          onExit: (_) => widget.onHoverUpdate(null),
+          onExit: (_) {
+            _lastPointerPos = null;
+            widget.onHoverUpdate(null);
+          },
           child: Listener(
             onPointerDown: (PointerDownEvent event) {
               widget.onInteraction?.call();
               final pos = event.localPosition;
+              _lastPointerPos = pos;
               if (widget.selectedTool == DrawingTool.selector) {
                 _handleSelectionStart(pos);
               } else if (widget.selectedTool == DrawingTool.text) {
@@ -131,6 +154,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             },
             onPointerMove: (PointerMoveEvent event) {
               final pos = event.localPosition;
+              _updateDusterAngle(pos);
               widget.onHoverUpdate(pos);
               if (widget.selectedTool == DrawingTool.selector) {
                 _handleSelectionUpdate(pos);
@@ -140,6 +164,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               }
             },
             onPointerUp: (PointerUpEvent event) {
+              _lastPointerPos = null;
               if (widget.selectedTool == DrawingTool.selector) {
                 _handleSelectionEnd();
               } else if (_isDrawing) {
@@ -159,6 +184,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
                 eraserWidth: widget.eraserWidth,
                 tool: widget.selectedTool,
                 dusterType: widget.selectedDusterType,
+                dusterAngle: _dusterAngle,
                 hoverPosition: widget.hoverPosition,
                 selectionRect: _selectionRect,
                 selectedIndices: _selectedIndices,
@@ -419,6 +445,7 @@ class DrawingPainter extends CustomPainter {
   final double eraserWidth;
   final DrawingTool tool;
   final DusterType dusterType;
+  final double dusterAngle;
   final Offset? hoverPosition;
   final Rect? selectionRect;
   final List<int> selectedIndices;
@@ -439,6 +466,7 @@ class DrawingPainter extends CustomPainter {
     required this.eraserWidth,
     required this.tool,
     this.dusterType = DusterType.feltBlock,
+    this.dusterAngle = 0.0,
     required this.hoverPosition,
     this.selectionRect,
     this.selectedIndices = const [],
@@ -512,7 +540,7 @@ class DrawingPainter extends CustomPainter {
 
     // Draw Realistic Duster Cursor Preview
     if (tool == DrawingTool.eraser && hoverPosition != null) {
-      _drawDusterCursor(canvas, hoverPosition!, eraserWidth, dusterType);
+      _drawDusterCursor(canvas, hoverPosition!, eraserWidth, dusterType, dusterAngle);
     }
   }
 
@@ -655,6 +683,12 @@ class DrawingPainter extends CustomPainter {
   void _drawStroke(Canvas canvas, DrawingStroke stroke) {
     if (stroke.points.length < 2) return;
 
+    if (stroke.tool == DrawingTool.eraser &&
+        (stroke.dusterType == DusterType.feltBlock || stroke.dusterType == DusterType.sponge)) {
+      _drawDirectionalBlockEraser(canvas, stroke);
+      return;
+    }
+
     final paint = Paint()
       ..color = stroke.color
       ..strokeWidth = stroke.width
@@ -666,11 +700,6 @@ class DrawingPainter extends CustomPainter {
     // True Eraser: Clear the pixels instead of painting white
     if (stroke.tool == DrawingTool.eraser) {
       paint.blendMode = BlendMode.clear;
-      if (stroke.dusterType == DusterType.feltBlock) {
-        paint.strokeWidth = stroke.width * 1.8;
-      } else if (stroke.dusterType == DusterType.sponge) {
-        paint.strokeWidth = stroke.width * 1.4;
-      }
     }
 
     // Highlighter effect
@@ -703,9 +732,47 @@ class DrawingPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _drawDusterCursor(Canvas canvas, Offset center, double size, DusterType type) {
+  void _drawDirectionalBlockEraser(Canvas canvas, DrawingStroke stroke) {
+    final double blockW = (stroke.dusterType == DusterType.feltBlock) ? stroke.width * 1.8 : stroke.width * 1.5;
+    final double blockH = (stroke.dusterType == DusterType.feltBlock) ? stroke.width * 0.9 : stroke.width * 1.0;
+    final paint = Paint()
+      ..blendMode = BlendMode.clear
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < stroke.points.length - 1; i++) {
+      final p1 = stroke.points[i];
+      final p2 = stroke.points[i + 1];
+      final delta = p2 - p1;
+      final dist = delta.distance;
+      if (dist < 0.1) continue;
+
+      final angle = math.atan2(delta.dy, delta.dx);
+      final step = math.max(2.0, blockH * 0.2);
+      final steps = (dist / step).ceil();
+
+      for (int s = 0; s <= steps; s++) {
+        final t = s / steps;
+        final pos = Offset.lerp(p1, p2, t)!;
+
+        canvas.save();
+        canvas.translate(pos.dx, pos.dy);
+        canvas.rotate(angle);
+        final rect = Rect.fromCenter(center: Offset.zero, width: blockW, height: blockH);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(stroke.dusterType == DusterType.feltBlock ? 4 : 10)),
+          paint,
+        );
+        canvas.restore();
+      }
+    }
+  }
+
+  void _drawDusterCursor(Canvas canvas, Offset center, double size, DusterType type, double angle) {
     canvas.save();
     canvas.translate(center.dx, center.dy);
+    if (type == DusterType.feltBlock || type == DusterType.sponge) {
+      canvas.rotate(angle);
+    }
 
     switch (type) {
       case DusterType.feltBlock:

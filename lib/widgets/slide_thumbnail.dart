@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import '../models/drawing_stroke.dart';
@@ -289,6 +290,12 @@ class _ThumbnailPainter extends CustomPainter {
   void _drawSingleStroke(Canvas canvas, DrawingStroke stroke, Size size) {
     if (stroke.points.length < 2) return;
 
+    if (stroke.tool == DrawingTool.eraser &&
+        (stroke.dusterType == DusterType.feltBlock || stroke.dusterType == DusterType.sponge)) {
+      _drawDirectionalBlockEraserThumbnail(canvas, stroke, size);
+      return;
+    }
+
     final double widthScale = size.width / 1920.0;
     double calculatedWidth = stroke.width * widthScale;
 
@@ -300,12 +307,6 @@ class _ThumbnailPainter extends CustomPainter {
 
     if (stroke.tool == DrawingTool.eraser) {
       paint.blendMode = BlendMode.clear;
-      if (stroke.dusterType == DusterType.feltBlock) {
-        calculatedWidth *= 1.8;
-      } else if (stroke.dusterType == DusterType.sponge) {
-        calculatedWidth *= 1.4;
-      }
-      // Scale eraser width proportionally to thumbnail scale so eraser coverage matches main canvas
       calculatedWidth = (calculatedWidth * 3.0).clamp(3.0, 100.0);
     } else {
       paint.color = stroke.color;
@@ -345,6 +346,44 @@ class _ThumbnailPainter extends CustomPainter {
     }
 
     canvas.drawPath(path, paint);
+  }
+
+  void _drawDirectionalBlockEraserThumbnail(Canvas canvas, DrawingStroke stroke, Size size) {
+    final double widthScale = size.width / 1920.0;
+    final double baseWidth = stroke.width * widthScale * 3.0;
+
+    final double blockW = (stroke.dusterType == DusterType.feltBlock) ? baseWidth * 1.8 : baseWidth * 1.5;
+    final double blockH = (stroke.dusterType == DusterType.feltBlock) ? baseWidth * 0.9 : baseWidth * 1.0;
+    final paint = Paint()
+      ..blendMode = BlendMode.clear
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < stroke.points.length - 1; i++) {
+      final p1 = Offset(stroke.points[i].dx * size.width, stroke.points[i].dy * size.height);
+      final p2 = Offset(stroke.points[i + 1].dx * size.width, stroke.points[i + 1].dy * size.height);
+      final delta = p2 - p1;
+      final dist = delta.distance;
+      if (dist < 0.1) continue;
+
+      final angle = math.atan2(delta.dy, delta.dx);
+      final step = math.max(1.5, blockH * 0.25);
+      final steps = (dist / step).ceil();
+
+      for (int s = 0; s <= steps; s++) {
+        final t = s / steps;
+        final pos = Offset.lerp(p1, p2, t)!;
+
+        canvas.save();
+        canvas.translate(pos.dx, pos.dy);
+        canvas.rotate(angle);
+        final rect = Rect.fromCenter(center: Offset.zero, width: blockW, height: blockH);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(stroke.dusterType == DusterType.feltBlock ? 2 : 5)),
+          paint,
+        );
+        canvas.restore();
+      }
+    }
   }
 
   @override
