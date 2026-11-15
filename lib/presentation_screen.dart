@@ -13,6 +13,7 @@ import '../widgets/slide_thumbnail.dart';
 import '../widgets/samsung_menu_item.dart';
 import '../widgets/drawing_text_widget.dart';
 import '../widgets/text_formatting_dialog.dart';
+import '../widgets/color_picker.dart';
 import '../services/pptx_converter_libreoffice.dart';
 import '../services/export_service.dart';
 
@@ -1284,58 +1285,16 @@ $stackString
     });
   }
 
-  void _showDrawingColorPicker() {
-    Color selectedColor = _selectedColor;
-
-    showDialog(
+  void _showDrawingColorPicker() async {
+    final newColor = await SmartColorPickerDialog.show(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.white,
-          elevation: 10,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Container(
-            width: 380,
-            padding: const EdgeInsets.all(16),
-            child: StatefulBuilder(
-              builder: (context, setDialogState) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Drawing Color',
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 12),
-                    _buildColorPalette(selectedColor,
-                            (color) => setDialogState(() => selectedColor = color)),
-                    const SizedBox(height: 12),
-                    _buildHueSlider(selectedColor,
-                            (color) => setDialogState(() => selectedColor = color)),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                            onPressed: () => Navigator.pop(dialogContext),
-                            child: const Text('Cancel')),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() => _selectedColor = selectedColor);
-                            Navigator.pop(dialogContext);
-                          },
-                          child: const Text('Apply'),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        );
-      },
+      initialColor: _selectedColor,
+      title: 'Drawing Color',
+      icon: Icons.palette_outlined,
     );
+    if (newColor != null) {
+      setState(() => _selectedColor = newColor);
+    }
   }
 
   void _cleanupEmptyTexts() {
@@ -2301,7 +2260,7 @@ $stackString
     ));
   }
 
-  void _showBackgroundColorPicker() {
+  void _showBackgroundColorPicker() async {
     final currentPage = _pages[_currentPageIndex];
     final isBlankSlide =
         currentPage.contentPath == null || currentPage.contentPath!.isEmpty;
@@ -2312,252 +2271,24 @@ $stackString
       return;
     }
 
-    Color selectedColor = currentPage.backgroundColor ?? Colors.white;
+    final initialColor = currentPage.backgroundColor ?? Colors.white;
 
-    showDialog(
+    final newColor = await SmartColorPickerDialog.show(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.white,
-          elevation: 10,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            width: 380,
-            padding: const EdgeInsets.all(16),
-            child: StatefulBuilder(
-              builder: (context, setDialogState) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.purple.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.palette,
-                              color: Colors.purple, size: 16),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Background Color',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade800,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close,
-                              size: 16, color: Colors.grey.shade500),
-                          onPressed: () => Navigator.pop(dialogContext),
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: selectedColor,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '#${selectedColor.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
-                          style: TextStyle(
-                            color: selectedColor.computeLuminance() > 0.5
-                                ? Colors.black87
-                                : Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildColorPalette(selectedColor, (color) {
-                      setDialogState(() => selectedColor = color);
-                    }),
-                    const SizedBox(height: 12),
-                    _buildHueSlider(selectedColor, (color) {
-                      setDialogState(() => selectedColor = color);
-                    }),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: const Text('Cancel'),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              final updatedPage =
-                              _pages[_currentPageIndex].copyWith(
-                                backgroundColor: selectedColor,
-                              );
-                              _pages[_currentPageIndex] = updatedPage;
-                              _pages = List.from(_pages);
-                            });
-                            Navigator.pop(dialogContext);
-                          },
-                          child: const Text('Apply'),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        );
-      },
+      initialColor: initialColor,
+      title: 'Background Color',
+      icon: Icons.format_color_fill_outlined,
     );
-  }
 
-  Widget _buildColorPalette(
-      Color currentColor, Function(Color) onColorChanged) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        const height = 150.0;
-        final hsv = HSVColor.fromColor(currentColor);
-
-        void updateColor(Offset localPosition) {
-          final dx = (localPosition.dx / width).clamp(0.0, 1.0);
-          final dy = (localPosition.dy / height).clamp(0.0, 1.0);
-          final newColor =
-              HSVColor.fromAHSV(1.0, hsv.hue, dx, 1.0 - dy).toColor();
-          onColorChanged(newColor);
-        }
-
-        return GestureDetector(
-          onPanDown: (details) => updateColor(details.localPosition),
-          onPanUpdate: (details) => updateColor(details.localPosition),
-          child: Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: HSVColor.fromAHSV(1.0, hsv.hue, 1.0, 1.0)
-                        .toColor(),
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    gradient: const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [Colors.white, Colors.transparent],
-                    ),
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: (hsv.saturation * width) - 8,
-                  top: ((1.0 - hsv.value) * height) - 8,
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    if (newColor != null) {
+      setState(() {
+        final updatedPage = _pages[_currentPageIndex].copyWith(
+          backgroundColor: newColor,
         );
-      },
-    );
-  }
-
-  Widget _buildHueSlider(
-      Color currentColor, Function(Color) onColorChanged) {
-    final currentHue = HSVColor.fromColor(currentColor).hue;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-
-        void updateHue(Offset localPosition) {
-          final hue = (localPosition.dx / width * 360).clamp(0.0, 360.0);
-          final hsv = HSVColor.fromColor(currentColor);
-          onColorChanged(
-              HSVColor.fromAHSV(1.0, hue, hsv.saturation, hsv.value).toColor());
-        }
-
-        return GestureDetector(
-          onPanDown: (details) => updateHue(details.localPosition),
-          onPanUpdate: (details) => updateHue(details.localPosition),
-          child: Container(
-            height: 24,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: const LinearGradient(
-                colors: [
-                  Colors.red,
-                  Colors.yellow,
-                  Colors.green,
-                  Colors.cyan,
-                  Colors.blue,
-                  Colors.purple,
-                  Colors.red,
-                ],
-              ),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  left: (currentHue / 360 * width) - 8,
-                  top: 4,
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+        _pages[_currentPageIndex] = updatedPage;
+        _pages = List.from(_pages);
+      });
+    }
   }
 
   String _generateExportFileName() {
