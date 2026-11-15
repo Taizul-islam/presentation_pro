@@ -52,6 +52,9 @@ class _PresentationScreenState extends State<PresentationScreen>
   DrawingTool _selectedTool = DrawingTool.pen;
   DusterType _selectedDusterType = DusterType.feltBlock;
   DusterOrientation _selectedDusterOrientation = DusterOrientation.rightHand;
+  bool _isAutoHandDusterEnabled = true;
+  bool _isHandDusterActive = false;
+  DrawingTool? _previousToolBeforeHandDuster;
   Offset? _hoverPosition;
 
   int _currentPageIndex = 0;
@@ -126,6 +129,36 @@ class _PresentationScreenState extends State<PresentationScreen>
       _isMenuVisible = false;
       _isSidebarCollapsed = false;
     });
+  }
+
+  void _handleHandTouchDetected(bool isHand, double size) {
+    if (!_isAutoHandDusterEnabled) return;
+
+    if (isHand) {
+      if (!_isHandDusterActive) {
+        _previousToolBeforeHandDuster = _selectedTool;
+        setState(() {
+          _isHandDusterActive = true;
+          _selectedTool = DrawingTool.eraser;
+          _selectedDusterType = DusterType.feltBlock;
+          _eraserWidth = size;
+        });
+      } else {
+        setState(() {
+          _eraserWidth = size;
+        });
+      }
+    } else {
+      if (_isHandDusterActive) {
+        setState(() {
+          _isHandDusterActive = false;
+          if (_previousToolBeforeHandDuster != null) {
+            _selectedTool = _previousToolBeforeHandDuster!;
+            _previousToolBeforeHandDuster = null;
+          }
+        });
+      }
+    }
   }
 
   double get _currentDusterAngle {
@@ -821,6 +854,37 @@ $stackString
               bottom: 0,
               child: _buildSlideNavigation(),
             ),
+          if (_isHandDusterActive)
+            Positioned(
+              top: 70,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade800,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.back_hand, color: Colors.white, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Hand Duster Auto-Detected',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           if (_isLoadingDocument) _buildLoadingOverlay(),
         ],
       ),
@@ -905,6 +969,7 @@ $stackString
                   selectedDusterType: _selectedDusterType,
                   selectedDusterOrientation: _selectedDusterOrientation,
                   hoverPosition: isCurrentPage ? _hoverPosition : null,
+                  onHandTouchDetected: _handleHandTouchDetected,
                   onStrokeStart: _startStroke,
                   onStrokeUpdate: _updateStroke,
                   onStrokeEnd: _endStroke,
@@ -1181,6 +1246,31 @@ $stackString
                 _selectedTool == DrawingTool.hand),
             _buildToolbarIcon(Icons.highlight, DrawingTool.highlighter,
                 _selectedTool == DrawingTool.highlighter),
+            IconButton(
+              icon: Icon(
+                Icons.back_hand_outlined,
+                size: 22,
+                color: _isAutoHandDusterEnabled
+                    ? Colors.orange.shade800
+                    : Colors.grey,
+              ),
+              onPressed: () {
+                setState(() =>
+                    _isAutoHandDusterEnabled = !_isAutoHandDusterEnabled);
+                _showSnackBar(
+                  _isAutoHandDusterEnabled
+                      ? 'Auto Hand Duster AI Enabled'
+                      : 'Auto Hand Duster Disabled',
+                  _isAutoHandDusterEnabled
+                      ? Colors.orange.shade800
+                      : Colors.grey.shade700,
+                  Icons.back_hand_outlined,
+                );
+              },
+              tooltip: _isAutoHandDusterEnabled
+                  ? 'Auto Hand Duster AI: ON'
+                  : 'Auto Hand Duster AI: OFF',
+            ),
             GestureDetector(
               onTap: _showDrawingColorPicker,
               child: Container(

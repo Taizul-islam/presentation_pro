@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../models/drawing_stroke.dart';
 
@@ -21,6 +22,7 @@ class DrawingCanvas extends StatefulWidget {
   final Function(List<int>, double, Offset)? onStrokesRotated;
   final Function(Rect?, List<int>)? onSelectionChanged;
   final Function(Offset)? onTextCreated;
+  final Function(bool isHand, double size)? onHandTouchDetected;
   final VoidCallback? onInteraction;
 
   const DrawingCanvas({
@@ -43,6 +45,7 @@ class DrawingCanvas extends StatefulWidget {
     this.onStrokesRotated,
     this.onSelectionChanged,
     this.onTextCreated,
+    this.onHandTouchDetected,
     this.onInteraction,
   }) : super(key: key);
 
@@ -135,6 +138,15 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     });
   }
 
+  void _checkHandTouch(PointerEvent event) {
+    if (event.kind == PointerDeviceKind.touch) {
+      if (event.radiusMajor > 18.0 || event.radiusMinor > 16.0 || event.pressure > 0.75) {
+        final double handSize = (event.radiusMajor * 2.2).clamp(40.0, 150.0);
+        widget.onHandTouchDetected?.call(true, handSize);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -156,6 +168,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
           child: Listener(
             onPointerDown: (PointerDownEvent event) {
               widget.onInteraction?.call();
+              _checkHandTouch(event);
               final pos = event.localPosition;
               _lastPointerPos = pos;
               if (widget.selectedTool == DrawingTool.selector) {
@@ -171,6 +184,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               }
             },
             onPointerMove: (PointerMoveEvent event) {
+              _checkHandTouch(event);
               final pos = event.localPosition;
               _updateDusterAngle(pos);
               widget.onHoverUpdate(pos);
@@ -183,12 +197,21 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             },
             onPointerUp: (PointerUpEvent event) {
               _lastPointerPos = null;
+              widget.onHandTouchDetected?.call(false, 0.0);
               if (widget.selectedTool == DrawingTool.selector) {
                 _handleSelectionEnd();
               } else if (_isDrawing) {
                 _isDrawing = false;
                 widget.onStrokeEnd();
                 widget.onHoverUpdate(event.localPosition);
+              }
+            },
+            onPointerCancel: (PointerCancelEvent event) {
+              _lastPointerPos = null;
+              widget.onHandTouchDetected?.call(false, 0.0);
+              if (_isDrawing) {
+                _isDrawing = false;
+                widget.onStrokeEnd();
               }
             },
             behavior: HitTestBehavior.opaque,
