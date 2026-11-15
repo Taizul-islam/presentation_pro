@@ -2437,16 +2437,17 @@ $stackString
         const height = 150.0;
         final hsv = HSVColor.fromColor(currentColor);
 
+        void updateColor(Offset localPosition) {
+          final dx = (localPosition.dx / width).clamp(0.0, 1.0);
+          final dy = (localPosition.dy / height).clamp(0.0, 1.0);
+          final newColor =
+              HSVColor.fromAHSV(1.0, hsv.hue, dx, 1.0 - dy).toColor();
+          onColorChanged(newColor);
+        }
+
         return GestureDetector(
-          onPanUpdate: (details) {
-            final dx =
-            (details.localPosition.dx / width).clamp(0.0, 1.0);
-            final dy =
-            (details.localPosition.dy / height).clamp(0.0, 1.0);
-            final newColor =
-            HSVColor.fromAHSV(1.0, hsv.hue, dx, 1.0 - dy).toColor();
-            onColorChanged(newColor);
-          },
+          onPanDown: (details) => updateColor(details.localPosition),
+          onPanUpdate: (details) => updateColor(details.localPosition),
           child: Container(
             width: width,
             height: height,
@@ -2511,15 +2512,16 @@ $stackString
       builder: (context, constraints) {
         final width = constraints.maxWidth;
 
+        void updateHue(Offset localPosition) {
+          final hue = (localPosition.dx / width * 360).clamp(0.0, 360.0);
+          final hsv = HSVColor.fromColor(currentColor);
+          onColorChanged(
+              HSVColor.fromAHSV(1.0, hue, hsv.saturation, hsv.value).toColor());
+        }
+
         return GestureDetector(
-          onPanUpdate: (details) {
-            final hue = (details.localPosition.dx / width * 360)
-                .clamp(0.0, 360.0);
-            final hsv = HSVColor.fromColor(currentColor);
-            onColorChanged(HSVColor.fromAHSV(1.0, hue, hsv.saturation,
-                hsv.value)
-                .toColor());
-          },
+          onPanDown: (details) => updateHue(details.localPosition),
+          onPanUpdate: (details) => updateHue(details.localPosition),
           child: Container(
             height: 24,
             decoration: BoxDecoration(
