@@ -25,50 +25,38 @@ class SlideThumbnail extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  '${page.pageNumber}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isSelected ? Colors.indigo : Colors.grey,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: isSelected ? Colors.indigo : Colors.grey.shade300,
-                        width: isSelected ? 2 : 1,
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+        child: AspectRatio(
+          aspectRatio: page.aspectRatio ?? (16 / 9),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: isSelected ? Colors.indigo : Colors.grey.shade300,
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: Colors.indigo.withOpacity(0.25),
+                        blurRadius: 6,
+                        spreadRadius: 1,
                       ),
-                      boxShadow: isSelected
-                          ? [
-                        BoxShadow(
-                          color: Colors.indigo.withOpacity(0.2),
-                          blurRadius: 4,
-                          spreadRadius: 1,
-                        ),
-                      ]
-                          : null,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: _buildThumbnailPreview(),
-                    ),
-                  ),
-                ),
-              ],
+                    ]
+                  : [
+                      const BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
             ),
-          ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: _buildThumbnailPreview(),
+            ),
+          ),
         ),
       ),
     );
@@ -80,13 +68,34 @@ class SlideThumbnail extends StatelessWidget {
         currentStroke != null;
     return Stack(
       children: [
-        _buildBackground(hasContent),
+        Positioned.fill(child: _buildBackground(hasContent)),
         Positioned.fill(
           child: CustomPaint(
             painter: _ThumbnailPainter(
               strokes: page.strokes,
               currentStroke: currentStroke,
               texts: page.texts,
+            ),
+          ),
+        ),
+        Positioned(
+          left: 6,
+          top: 6,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Colors.indigo
+                  : Colors.black.withOpacity(0.55),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '${page.pageNumber}',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
         ),
