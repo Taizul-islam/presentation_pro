@@ -267,6 +267,11 @@ class ExportService {
 
         if (stroke.tool == DrawingTool.eraser) {
           paint.blendMode = ui.BlendMode.clear;
+          if (stroke.dusterType == DusterType.feltBlock) {
+            paint.strokeWidth *= 1.8;
+          } else if (stroke.dusterType == DusterType.sponge) {
+            paint.strokeWidth *= 1.4;
+          }
         }
 
         if (stroke.tool == DrawingTool.highlighter) {

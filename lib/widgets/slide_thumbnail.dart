@@ -290,10 +290,9 @@ class _ThumbnailPainter extends CustomPainter {
     if (stroke.points.length < 2) return;
 
     final double widthScale = size.width / 1920.0;
-    final double calculatedWidth = (stroke.width * widthScale).clamp(1.2, 50.0);
+    double calculatedWidth = stroke.width * widthScale;
 
     final paint = Paint()
-      ..strokeWidth = calculatedWidth
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke
@@ -301,14 +300,24 @@ class _ThumbnailPainter extends CustomPainter {
 
     if (stroke.tool == DrawingTool.eraser) {
       paint.blendMode = BlendMode.clear;
+      if (stroke.dusterType == DusterType.feltBlock) {
+        calculatedWidth *= 1.8;
+      } else if (stroke.dusterType == DusterType.sponge) {
+        calculatedWidth *= 1.4;
+      }
+      // Scale eraser width proportionally to thumbnail scale so eraser coverage matches main canvas
+      calculatedWidth = (calculatedWidth * 3.0).clamp(3.0, 100.0);
     } else {
       paint.color = stroke.color;
+      calculatedWidth = calculatedWidth.clamp(1.2, 50.0);
     }
 
     if (stroke.tool == DrawingTool.highlighter) {
       paint.color = stroke.color.withOpacity(0.3);
-      paint.strokeWidth = calculatedWidth * 2;
+      calculatedWidth *= 2;
     }
+
+    paint.strokeWidth = calculatedWidth;
 
     final path = Path()
       ..moveTo(stroke.points[0].dx * size.width, stroke.points[0].dy * size.height);
