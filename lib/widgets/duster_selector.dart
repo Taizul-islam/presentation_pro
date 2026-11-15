@@ -4,24 +4,32 @@ import '../models/drawing_stroke.dart';
 
 class RealDusterToolbar extends StatelessWidget {
   final DusterType selectedDusterType;
+  final DusterOrientation selectedOrientation;
   final double dusterSize;
   final Function(DusterType) onDusterTypeChanged;
+  final Function(DusterOrientation) onOrientationChanged;
   final Function(double) onDusterSizeChanged;
   final VoidCallback onClearSlide;
 
   const RealDusterToolbar({
     Key? key,
     required this.selectedDusterType,
+    required this.selectedOrientation,
     required this.dusterSize,
     required this.onDusterTypeChanged,
+    required this.onOrientationChanged,
     required this.onDusterSizeChanged,
     required this.onClearSlide,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final showOrientationOptions =
+        selectedDusterType == DusterType.feltBlock ||
+            selectedDusterType == DusterType.sponge;
+
     return Container(
-      width: 440,
+      width: 480,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -71,11 +79,73 @@ class RealDusterToolbar extends StatelessWidget {
               ),
             ],
           ),
+
+          if (showOrientationOptions) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+
+            // Row 2: Ergonomic Grip Angle Selector
+            Row(
+              children: [
+                Icon(Icons.pan_tool_outlined, size: 15, color: Colors.grey.shade700),
+                const SizedBox(width: 6),
+                Text(
+                  'Grip Angle:',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildOrientationChip(
+                          orientation: DusterOrientation.rightHand,
+                          label: 'Right Hand (15°)',
+                          icon: Icons.front_hand,
+                        ),
+                        const SizedBox(width: 6),
+                        _buildOrientationChip(
+                          orientation: DusterOrientation.horizontal,
+                          label: 'Horizontal (0°)',
+                          icon: Icons.horizontal_rule,
+                        ),
+                        const SizedBox(width: 6),
+                        _buildOrientationChip(
+                          orientation: DusterOrientation.leftHand,
+                          label: 'Left Hand (-15°)',
+                          icon: Icons.back_hand,
+                        ),
+                        const SizedBox(width: 6),
+                        _buildOrientationChip(
+                          orientation: DusterOrientation.vertical,
+                          label: 'Vertical (90°)',
+                          icon: Icons.height,
+                        ),
+                        const SizedBox(width: 6),
+                        _buildOrientationChip(
+                          orientation: DusterOrientation.auto,
+                          label: 'Auto Motion',
+                          icon: Icons.autorenew,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
           const SizedBox(height: 10),
           const Divider(height: 1),
           const SizedBox(height: 10),
 
-          // Row 2: Size Slider & Wipe Button
+          // Row 3: Size Slider & Wipe Button
           Row(
             children: [
               Icon(Icons.aspect_ratio, size: 16, color: Colors.grey.shade600),
@@ -206,6 +276,50 @@ class RealDusterToolbar extends StatelessWidget {
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrientationChip({
+    required DusterOrientation orientation,
+    required String label,
+    required IconData icon,
+  }) {
+    final isSelected = selectedOrientation == orientation;
+
+    return InkWell(
+      onTap: () => onOrientationChanged(orientation),
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.orange.shade50 : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.orange.shade700 : Colors.grey.shade300,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? Colors.orange.shade800 : Colors.grey.shade700,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.orange.shade900 : Colors.grey.shade800,
+              ),
             ),
           ],
         ),

@@ -16,6 +16,14 @@ enum DusterType {
   precision, // Precision circular tip eraser
 }
 
+enum DusterOrientation {
+  rightHand,  // 15° Ergonomic right-hand holding grip (default)
+  horizontal, // 0° Flat horizontal
+  leftHand,   // -15° Ergonomic left-hand holding grip
+  vertical,   // 90° Vertical column
+  auto,       // Dynamic motion direction with high-pass filtering
+}
+
 enum PageContentType {
   placeholder,
   image,
@@ -29,6 +37,7 @@ class DrawingStroke {
   final double width;
   final DrawingTool tool;
   final DusterType dusterType;
+  final double strokeAngle;
   final bool isLocked;
 
   DrawingStroke({
@@ -37,6 +46,7 @@ class DrawingStroke {
     required this.width,
     required this.tool,
     this.dusterType = DusterType.feltBlock,
+    this.strokeAngle = 0.0,
     this.isLocked = false,
   });
 
@@ -65,6 +75,7 @@ class DrawingStroke {
       width: width,
       tool: tool,
       dusterType: dusterType,
+      strokeAngle: strokeAngle,
       isLocked: isLocked,
     );
   }
@@ -81,6 +92,7 @@ class DrawingStroke {
       width: width, 
       tool: tool,
       dusterType: dusterType,
+      strokeAngle: strokeAngle,
       isLocked: isLocked,
     );
   }
@@ -104,6 +116,7 @@ class DrawingStroke {
       width: width,
       tool: tool,
       dusterType: dusterType,
+      strokeAngle: strokeAngle + angle,
       isLocked: isLocked,
     );
   }
@@ -120,6 +133,7 @@ class DrawingStroke {
       width: width,
       tool: tool,
       dusterType: dusterType,
+      strokeAngle: -strokeAngle,
       isLocked: isLocked,
     );
   }
@@ -130,6 +144,7 @@ class DrawingStroke {
     double? width,
     DrawingTool? tool,
     DusterType? dusterType,
+    double? strokeAngle,
     bool? isLocked,
   }) {
     return DrawingStroke(
@@ -138,6 +153,7 @@ class DrawingStroke {
       width: width ?? this.width,
       tool: tool ?? this.tool,
       dusterType: dusterType ?? this.dusterType,
+      strokeAngle: strokeAngle ?? this.strokeAngle,
       isLocked: isLocked ?? this.isLocked,
     );
   }

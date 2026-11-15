@@ -51,6 +51,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   double _eraserWidth = 30.0;
   DrawingTool _selectedTool = DrawingTool.pen;
   DusterType _selectedDusterType = DusterType.feltBlock;
+  DusterOrientation _selectedDusterOrientation = DusterOrientation.rightHand;
   Offset? _hoverPosition;
 
   int _currentPageIndex = 0;
@@ -127,6 +128,21 @@ class _PresentationScreenState extends State<PresentationScreen>
     });
   }
 
+  double get _currentDusterAngle {
+    switch (_selectedDusterOrientation) {
+      case DusterOrientation.rightHand:
+        return 15.0 * 3.141592653589793 / 180.0;
+      case DusterOrientation.leftHand:
+        return -15.0 * 3.141592653589793 / 180.0;
+      case DusterOrientation.vertical:
+        return 3.141592653589793 / 2.0;
+      case DusterOrientation.horizontal:
+        return 0.0;
+      case DusterOrientation.auto:
+        return 0.0;
+    }
+  }
+
   void _startStroke(Offset position) {
     setState(() {
       _currentStroke = DrawingStroke(
@@ -135,6 +151,7 @@ class _PresentationScreenState extends State<PresentationScreen>
         width: _selectedTool == DrawingTool.eraser ? _eraserWidth : _strokeWidth,
         tool: _selectedTool,
         dusterType: _selectedDusterType,
+        strokeAngle: _currentDusterAngle,
       );
     });
   }
@@ -757,9 +774,12 @@ $stackString
               child: Center(
                 child: RealDusterToolbar(
                   selectedDusterType: _selectedDusterType,
+                  selectedOrientation: _selectedDusterOrientation,
                   dusterSize: _eraserWidth,
                   onDusterTypeChanged: (type) =>
                       setState(() => _selectedDusterType = type),
+                  onOrientationChanged: (orientation) =>
+                      setState(() => _selectedDusterOrientation = orientation),
                   onDusterSizeChanged: (size) =>
                       setState(() => _eraserWidth = size),
                   onClearSlide: _clearStrokes,
@@ -883,6 +903,7 @@ $stackString
                   eraserWidth: _eraserWidth,
                   selectedTool: _selectedTool,
                   selectedDusterType: _selectedDusterType,
+                  selectedDusterOrientation: _selectedDusterOrientation,
                   hoverPosition: isCurrentPage ? _hoverPosition : null,
                   onStrokeStart: _startStroke,
                   onStrokeUpdate: _updateStroke,

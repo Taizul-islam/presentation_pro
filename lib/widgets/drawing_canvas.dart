@@ -10,6 +10,7 @@ class DrawingCanvas extends StatefulWidget {
   final double eraserWidth;
   final DrawingTool selectedTool;
   final DusterType selectedDusterType;
+  final DusterOrientation selectedDusterOrientation;
   final Offset? hoverPosition;
   final Function(Offset) onStrokeStart;
   final Function(Offset) onStrokeUpdate;
@@ -31,6 +32,7 @@ class DrawingCanvas extends StatefulWidget {
     required this.eraserWidth,
     required this.selectedTool,
     this.selectedDusterType = DusterType.feltBlock,
+    this.selectedDusterOrientation = DusterOrientation.rightHand,
     required this.hoverPosition,
     required this.onStrokeStart,
     required this.onStrokeUpdate,
@@ -72,15 +74,31 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   double _rotationAngle = 0.0;
   Offset? _rotationCenter;
 
+  double get _currentDusterAngle {
+    switch (widget.selectedDusterOrientation) {
+      case DusterOrientation.rightHand:
+        return 15.0 * math.pi / 180.0; // 15° Right-hand grip angle
+      case DusterOrientation.leftHand:
+        return -15.0 * math.pi / 180.0; // -15° Left-hand grip angle
+      case DusterOrientation.vertical:
+        return math.pi / 2.0; // 90° Vertical
+      case DusterOrientation.horizontal:
+        return 0.0; // 0° Horizontal
+      case DusterOrientation.auto:
+        return _dusterAngle;
+    }
+  }
+
   void _updateDusterAngle(Offset pos) {
+    if (widget.selectedDusterOrientation != DusterOrientation.auto) return;
     if (_lastPointerPos != null) {
       final delta = pos - _lastPointerPos!;
-      if (delta.distance > 2.0) {
+      if (delta.distance > 15.0) { // High-pass distance filter to eliminate hand jitters
         final targetAngle = math.atan2(delta.dy, delta.dx);
         double diff = (targetAngle - _dusterAngle) % (2 * math.pi);
         if (diff > math.pi) diff -= 2 * math.pi;
         if (diff < -math.pi) diff += 2 * math.pi;
-        _dusterAngle += diff * 0.35;
+        _dusterAngle += diff * 0.25;
       }
     }
     _lastPointerPos = pos;
@@ -184,7 +202,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
                 eraserWidth: widget.eraserWidth,
                 tool: widget.selectedTool,
                 dusterType: widget.selectedDusterType,
-                dusterAngle: _dusterAngle,
+                dusterAngle: _currentDusterAngle,
                 hoverPosition: widget.hoverPosition,
                 selectionRect: _selectionRect,
                 selectedIndices: _selectedIndices,
