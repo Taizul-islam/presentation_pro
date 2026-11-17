@@ -915,7 +915,7 @@ $stackString
               bottom: 60,
               child: Center(
                 child: SizedBox(
-                  width: 340,
+                  width: 440,
                   child: StrokeWidthSlider(
                     strokeWidth: _strokeWidth,
                     selectedColor: _selectedColor,

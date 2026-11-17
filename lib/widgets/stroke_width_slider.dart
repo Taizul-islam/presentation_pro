@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -9,6 +10,8 @@ class StrokeWidthSlider extends StatelessWidget {
   final double min;
   final double max;
   final String label;
+
+  static const List<double> _presetWidths = [2.0, 4.0, 8.0, 12.0];
 
   const StrokeWidthSlider({
     Key? key,
@@ -55,7 +58,58 @@ class StrokeWidthSlider extends StatelessWidget {
               color: Colors.grey.shade700,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
+
+          // Quick Presets (2, 4, 8, 12)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: _presetWidths.map((w) {
+              final isSelected = (strokeWidth - w).abs() < 0.5;
+              final dotSize = math.min(10.0, math.max(3.0, w * 0.7));
+
+              return GestureDetector(
+                onTap: () => onStrokeWidthChanged(w),
+                child: Tooltip(
+                  message: '${w.toInt()}px',
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? (label.contains('Duster')
+                              ? Colors.orange.shade800
+                              : Colors.indigo)
+                          : Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected
+                            ? (label.contains('Duster')
+                                ? Colors.orange.shade800
+                                : Colors.indigo)
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: dotSize,
+                        height: dotSize,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white
+                              : (label.contains('Duster')
+                                  ? Colors.orange.shade700
+                                  : selectedColor),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(width: 8),
 
           // Slider
           Expanded(
