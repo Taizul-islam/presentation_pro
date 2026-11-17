@@ -12,6 +12,9 @@ class DrawingCanvas extends StatefulWidget {
   final DrawingTool selectedTool;
   final DusterType selectedDusterType;
   final DusterOrientation selectedDusterOrientation;
+  final LaserMode selectedLaserMode;
+  final Color laserColor;
+  final double spotlightRadius;
   final Offset? hoverPosition;
   final Function(Offset) onStrokeStart;
   final Function(Offset) onStrokeUpdate;
@@ -35,6 +38,9 @@ class DrawingCanvas extends StatefulWidget {
     required this.selectedTool,
     this.selectedDusterType = DusterType.feltBlock,
     this.selectedDusterOrientation = DusterOrientation.rightHand,
+    this.selectedLaserMode = LaserMode.laserDot,
+    this.laserColor = Colors.redAccent,
+    this.spotlightRadius = 100.0,
     required this.hoverPosition,
     required this.onStrokeStart,
     required this.onStrokeUpdate,
@@ -53,6 +59,12 @@ class DrawingCanvas extends StatefulWidget {
   _DrawingCanvasState createState() => _DrawingCanvasState();
 }
 
+class _LaserPoint {
+  final Offset position;
+  final DateTime timestamp;
+  _LaserPoint(this.position, this.timestamp);
+}
+
 class _DrawingCanvasState extends State<DrawingCanvas> {
   bool _isDrawing = false;
   Rect? _selectionRect;
@@ -62,9 +74,23 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   bool _isMoving = false;
   Size? _lastCanvasSize;
 
+  // Laser pointer state
+  final List<_LaserPoint> _laserPoints = [];
+
   // Duster direction state
   double _dusterAngle = 0.0;
   Offset? _lastPointerPos;
+
+  void _addLaserPoint(Offset pos) {
+    if (widget.selectedTool == DrawingTool.laserPointer &&
+        widget.selectedLaserMode == LaserMode.laserDot) {
+      final now = DateTime.now();
+      _laserPoints.add(_LaserPoint(pos, now));
+      _laserPoints.removeWhere(
+          (p) => now.difference(p.timestamp).inMilliseconds > 1200);
+      setState(() {});
+    }
+  }
 
   // Scaling state
   int? _activeHandleIndex; // 0: TL, 1: TR, 2: BL, 3: BR
@@ -157,6 +183,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
         return MouseRegion(
           onHover: (event) {
             _updateDusterAngle(event.localPosition);
+            _addLaserPoint(event.localPosition);
             if (!_isDrawing && !_isMoving) {
               widget.onHoverUpdate(event.localPosition);
             }
@@ -172,6 +199,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               _checkHandTouch(event);
               final pos = event.localPosition;
               _lastPointerPos = pos;
+              _addLaserPoint(pos);
               if (widget.selectedTool == DrawingTool.selector) {
                 _handleSelectionStart(pos);
               } else if (widget.selectedTool == DrawingTool.text) {
@@ -189,6 +217,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               _checkHandTouch(event);
               final pos = event.localPosition;
               _updateDusterAngle(pos);
+              _addLaserPoint(pos);
               widget.onHoverUpdate(pos);
               if (widget.selectedTool == DrawingTool.selector) {
                 _handleSelectionUpdate(pos);
@@ -232,6 +261,10 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
                 tool: widget.selectedTool,
                 dusterType: widget.selectedDusterType,
                 dusterAngle: _currentDusterAngle,
+                selectedLaserMode: widget.selectedLaserMode,
+                laserColor: widget.laserColor,
+                spotlightRadius: widget.spotlightRadius,
+                laserPoints: _laserPoints,
                 hoverPosition: widget.hoverPosition,
                 selectionRect: _selectionRect,
                 selectedIndices: _selectedIndices,
@@ -493,6 +526,10 @@ class DrawingPainter extends CustomPainter {
   final DrawingTool tool;
   final DusterType dusterType;
   final double dusterAngle;
+  final LaserMode selectedLaserMode;
+  final Color laserColor;
+  final double spotlightRadius;
+  final List<_LaserPoint> laserPoints;
   final Offset? hoverPosition;
   final Rect? selectionRect;
   final List<int> selectedIndices;
@@ -514,6 +551,10 @@ class DrawingPainter extends CustomPainter {
     required this.tool,
     this.dusterType = DusterType.feltBlock,
     this.dusterAngle = 0.0,
+    this.selectedLaserMode = LaserMode.laserDot,
+    this.laserColor = Colors.redAccent,
+    this.spotlightRadius = 100.0,
+    this.laserPoints = const [],
     required this.hoverPosition,
     this.selectionRect,
     this.selectedIndices = const [],
@@ -589,6 +630,66 @@ class DrawingPainter extends CustomPainter {
     if (tool == DrawingTool.eraser && hoverPosition != null) {
       _drawDusterCursor(canvas, hoverPosition!, eraserWidth, dusterType, dusterAngle);
     }
+
+    // Draw Laser Pointer or Torch Spotlight
+    if (tool == DrawingTool.laserPointer) {
+      if (selectedLaserMode == LaserMode.laserDot) {
+        _drawLaserPointerTrail(canvas, size);
+      } else if (selectedLaserMode == LaserMode.spotlight) {
+        _drawTorchSpotlight(canvas, size);
+      }
+    }
+  }
+
+  void _drawLaserPointerTrail(Canvas canvas, Size size) {
+    final now = DateTime.now();
+    for (int i = 0; i < laserPoints.length; i++) {
+      final p = laserPoints[i];
+      final ageMs = now.difference(p.timestamp).inMilliseconds;
+      if (ageMs > 1200) continue;
+      final alpha = (1.0 - ageMs / 1200.0).clamp(0.0, 1.0);
+
+      final outerPaint = Paint()
+        ..color = laserColor.withOpacity(alpha * 0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+      canvas.drawCircle(p.position, 12.0 * alpha, outerPaint);
+
+      final innerPaint = Paint()..color = Colors.white.withOpacity(alpha);
+      canvas.drawCircle(p.position, 3.0 * alpha, innerPaint);
+    }
+
+    if (hoverPosition != null) {
+      final mainGlow = Paint()
+        ..color = laserColor
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      canvas.drawCircle(hoverPosition!, 10, mainGlow);
+      canvas.drawCircle(hoverPosition!, 4, Paint()..color = Colors.white);
+    }
+  }
+
+  void _drawTorchSpotlight(Canvas canvas, Size size) {
+    if (hoverPosition == null) return;
+    canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
+
+    // Dark ambient overlay
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Paint()..color = Colors.black.withOpacity(0.68),
+    );
+
+    // Clear aperture
+    final clearPaint = Paint()..blendMode = BlendMode.clear;
+    canvas.drawCircle(hoverPosition!, spotlightRadius, clearPaint);
+
+    canvas.restore();
+
+    // Glowing border ring
+    final ringPaint = Paint()
+      ..color = Colors.amber.shade600.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawCircle(hoverPosition!, spotlightRadius, ringPaint);
   }
 
   void _drawSelectionBox(Canvas canvas, Rect rect) {

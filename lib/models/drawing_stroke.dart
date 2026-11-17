@@ -9,6 +9,12 @@ enum DrawingTool {
   hand,
   text,
   handwriting,
+  laserPointer,
+}
+
+enum LaserMode {
+  laserDot,
+  spotlight,
 }
 
 enum HandwritingLanguage {

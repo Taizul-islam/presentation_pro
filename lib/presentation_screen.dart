@@ -16,6 +16,7 @@ import '../widgets/text_formatting_dialog.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/duster_selector.dart';
 import '../widgets/handwriting_toolbar.dart';
+import '../widgets/laser_selector.dart';
 import '../services/pptx_converter_libreoffice.dart';
 import '../services/export_service.dart';
 import '../services/handwriting_recognizer.dart';
@@ -55,6 +56,9 @@ class _PresentationScreenState extends State<PresentationScreen>
   DusterType _selectedDusterType = DusterType.feltBlock;
   DusterOrientation _selectedDusterOrientation = DusterOrientation.rightHand;
   HandwritingLanguage _selectedHandwritingLang = HandwritingLanguage.english;
+  LaserMode _selectedLaserMode = LaserMode.laserDot;
+  Color _laserColor = Colors.redAccent;
+  double _spotlightRadius = 100.0;
   String _liveRecognizedText = '';
   bool _isAutoHandDusterEnabled = true;
   bool _isHandDusterActive = false;
@@ -984,6 +988,25 @@ $stackString
                 ),
               ),
             ),
+          if (_isDrawingMode && _selectedTool == DrawingTool.laserPointer)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 60,
+              child: Center(
+                child: LaserPointerToolbar(
+                  selectedMode: _selectedLaserMode,
+                  laserColor: _laserColor,
+                  spotlightRadius: _spotlightRadius,
+                  onModeChanged: (mode) =>
+                      setState(() => _selectedLaserMode = mode),
+                  onColorChanged: (color) =>
+                      setState(() => _laserColor = color),
+                  onRadiusChanged: (radius) =>
+                      setState(() => _spotlightRadius = radius),
+                ),
+              ),
+            ),
           if (_isDrawingMode && _selectedTool == DrawingTool.hand)
             Positioned(
               left: 0,
@@ -1177,6 +1200,9 @@ $stackString
                   selectedTool: _selectedTool,
                   selectedDusterType: _selectedDusterType,
                   selectedDusterOrientation: _selectedDusterOrientation,
+                  selectedLaserMode: _selectedLaserMode,
+                  laserColor: _laserColor,
+                  spotlightRadius: _spotlightRadius,
                   hoverPosition: isCurrentPage ? _hoverPosition : null,
                   onHandTouchDetected: _handleHandTouchDetected,
                   onStrokeStart: _startStroke,
@@ -1454,8 +1480,10 @@ $stackString
                 _selectedTool == DrawingTool.text),
             _buildToolbarIcon(Icons.pan_tool_outlined, DrawingTool.hand,
                 _selectedTool == DrawingTool.hand),
-            _buildToolbarIcon(Icons.highlight, DrawingTool.highlighter,
+            _buildToolbarIcon(Icons.border_color, DrawingTool.highlighter,
                 _selectedTool == DrawingTool.highlighter),
+            _buildToolbarIcon(Icons.flare, DrawingTool.laserPointer,
+                _selectedTool == DrawingTool.laserPointer),
             _buildToolbarIcon(Icons.spellcheck, DrawingTool.handwriting,
                 _selectedTool == DrawingTool.handwriting),
             IconButton(
