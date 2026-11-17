@@ -17,6 +17,7 @@ import '../widgets/color_picker.dart';
 import '../widgets/duster_selector.dart';
 import '../widgets/handwriting_toolbar.dart';
 import '../widgets/laser_selector.dart';
+import '../widgets/settings_dialog.dart';
 import '../services/pptx_converter_libreoffice.dart';
 import '../services/export_service.dart';
 import '../services/handwriting_recognizer.dart';
@@ -877,7 +878,7 @@ $stackString
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade300,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: _isDrawingMode ? null : _buildDefaultAppBar(),
       body: Stack(
         children: [
@@ -1421,8 +1422,9 @@ $stackString
   }
 
   Widget _buildSidebar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: Colors.grey.shade200,
+      color: isDark ? const Color(0xFF181825) : Colors.grey.shade200,
       child: ListView.builder(
         controller: _sidebarScrollController,
         itemCount: _pages.length,
@@ -1441,12 +1443,13 @@ $stackString
   }
 
   Widget _buildBottomLeftMenu() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.horizontal(right: Radius.circular(25)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+        borderRadius: const BorderRadius.horizontal(right: Radius.circular(25)),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1456,7 +1459,11 @@ $stackString
               onPressed: () =>
                   setState(() => _isMenuVisible = !_isMenuVisible)),
           IconButton(icon: const Icon(Icons.monitor), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.build), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.build),
+            tooltip: 'Settings',
+            onPressed: () => SettingsDialog.show(context),
+          ),
           IconButton(
               icon: const Icon(Icons.cloud_upload), onPressed: _pickDocument),
           IconButton(icon: const Icon(Icons.zoom_in), onPressed: () {}),

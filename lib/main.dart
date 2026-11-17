@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:mobile/splash_screen.dart';
+import 'package:mobile/services/theme_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
@@ -19,30 +20,25 @@ void main() async {
     await windowManager.focus();
   });
 
-  runApp(PresentationProApp());
+  runApp(
+    ChangeNotifierProvider<ThemeNotifier>(
+      create: (_) => ThemeNotifier(),
+      child: PresentationProApp(),
+    ),
+  );
 }
 
 class PresentationProApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final themeNotifier = Provider.of<ThemeNotifier>(context);
+
     return MaterialApp(
       title: 'Presentation Pro',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        fontFamily: GoogleFonts.poppins().fontFamily,
-        scaffoldBackgroundColor: Colors.grey.shade100,
-        appBarTheme: AppBarTheme(
-          elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.grey.shade800,
-          titleTextStyle: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
-          ),
-        ),
-      ),
+      theme: ThemeNotifier.lightTheme,
+      darkTheme: ThemeNotifier.darkTheme,
+      themeMode: themeNotifier.themeMode,
       home: SplashScreen(),
     );
   }
