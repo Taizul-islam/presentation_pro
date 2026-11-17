@@ -915,12 +915,13 @@ $stackString
               bottom: 60,
               child: Center(
                 child: SizedBox(
-                  width: 300,
+                  width: 340,
                   child: StrokeWidthSlider(
                     strokeWidth: _strokeWidth,
                     selectedColor: _selectedColor,
                     onStrokeWidthChanged: (width) =>
                         setState(() => _strokeWidth = width),
+                    onColorTap: _showDrawingColorPicker,
                     min: 1.0,
                     max: 15.0,
                     label: 'Stroke Width',
@@ -1377,19 +1378,6 @@ $stackString
               tooltip: _isAutoHandDusterEnabled
                   ? 'Auto Hand Duster AI: ON'
                   : 'Auto Hand Duster AI: OFF',
-            ),
-            GestureDetector(
-              onTap: _showDrawingColorPicker,
-              child: Container(
-                width: 24,
-                height: 24,
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: _selectedColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-              ),
             ),
             const VerticalDivider(width: 20),
             IconButton(icon: const Icon(Icons.undo), onPressed: _undo),

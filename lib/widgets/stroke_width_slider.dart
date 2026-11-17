@@ -5,6 +5,7 @@ class StrokeWidthSlider extends StatelessWidget {
   final double strokeWidth;
   final Color selectedColor;
   final Function(double) onStrokeWidthChanged;
+  final VoidCallback? onColorTap;
   final double min;
   final double max;
   final String label;
@@ -14,6 +15,7 @@ class StrokeWidthSlider extends StatelessWidget {
     required this.strokeWidth,
     required this.selectedColor,
     required this.onStrokeWidthChanged,
+    this.onColorTap,
     this.min = 1.0,
     this.max = 15.0,
     this.label = 'Stroke Width',
@@ -22,7 +24,7 @@ class StrokeWidthSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -30,7 +32,7 @@ class StrokeWidthSlider extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -42,7 +44,7 @@ class StrokeWidthSlider extends StatelessWidget {
             size: 14,
             color: label.contains('Duster') ? Colors.orange : selectedColor,
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
 
           // Label
           Text(
@@ -53,15 +55,15 @@ class StrokeWidthSlider extends StatelessWidget {
               color: Colors.grey.shade700,
             ),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
 
           // Slider
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 2,
-                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
               ),
               child: Slider(
                 value: strokeWidth,
@@ -73,13 +75,13 @@ class StrokeWidthSlider extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
 
           // Width value
           Container(
-            width: 40,
+            width: 36,
             alignment: Alignment.center,
-            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
               borderRadius: BorderRadius.circular(6),
@@ -93,6 +95,27 @@ class StrokeWidthSlider extends StatelessWidget {
               ),
             ),
           ),
+
+          // Color Selector Circle (integrated into Stroke Width bar)
+          if (onColorTap != null) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onColorTap,
+              child: Tooltip(
+                message: 'Drawing Color',
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: selectedColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
