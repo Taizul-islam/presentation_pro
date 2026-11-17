@@ -1467,8 +1467,6 @@ $stackString
           children: [
             _buildToolbarIcon(Icons.near_me, DrawingTool.selector,
                 _selectedTool == DrawingTool.selector),
-            _buildToolbarIcon(
-                Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
             IconButton(
               icon: const Icon(Icons.format_color_fill, size: 22),
               onPressed: _showBackgroundColorPicker,
@@ -1480,6 +1478,8 @@ $stackString
                 _selectedTool == DrawingTool.text),
             _buildToolbarIcon(Icons.pan_tool_outlined, DrawingTool.hand,
                 _selectedTool == DrawingTool.hand),
+            _buildToolbarIcon(
+                Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
             _buildToolbarIcon(Icons.border_color, DrawingTool.highlighter,
                 _selectedTool == DrawingTool.highlighter),
             _buildToolbarIcon(Icons.flare, DrawingTool.laserPointer,
