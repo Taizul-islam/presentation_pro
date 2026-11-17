@@ -1480,7 +1480,7 @@ $stackString
                 _selectedTool == DrawingTool.hand),
             _buildToolbarIcon(
                 Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
-            _buildToolbarIcon(Icons.border_color, DrawingTool.highlighter,
+            _buildToolbarIcon(Icons.brush, DrawingTool.highlighter,
                 _selectedTool == DrawingTool.highlighter),
             _buildToolbarIcon(Icons.flare, DrawingTool.laserPointer,
                 _selectedTool == DrawingTool.laserPointer),
