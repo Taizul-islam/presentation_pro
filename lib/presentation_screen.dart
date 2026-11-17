@@ -931,14 +931,14 @@ $stackString
             ),
           if (_isDrawingMode && _isMenuVisible)
             Positioned(
-              left: 30,
-              bottom: 60,
+              left: 16,
+              bottom: 70,
               child: _buildVerticalMenu(),
             ),
           if (_isDrawingMode)
             Positioned(
-              left: 0,
-              bottom: 0,
+              left: 16,
+              bottom: 12,
               child: _buildBottomLeftMenu(),
             ),
           if (_isDrawingMode && _selectedTool == DrawingTool.eraser)
@@ -1091,13 +1091,13 @@ $stackString
             Positioned(
               left: 0,
               right: 0,
-              bottom: 0,
+              bottom: 12,
               child: _buildFloatingToolbar(),
             ),
           if (_isDrawingMode)
             Positioned(
-              right: 0,
-              bottom: 0,
+              right: 16,
+              bottom: 12,
               child: _buildSlideNavigation(),
             ),
           if (_isHandDusterActive)
@@ -1447,10 +1447,15 @@ $stackString
     final iconColor = isDark ? Colors.white : Colors.grey.shade800;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-        borderRadius: const BorderRadius.horizontal(right: Radius.circular(25)),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.transparent,
+          width: 1,
+        ),
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
       ),
       child: Row(
@@ -1715,10 +1720,11 @@ $stackString
     final iconColor = isDark ? Colors.white : Colors.grey.shade700;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-        borderRadius: const BorderRadius.horizontal(left: Radius.circular(25)),
+        borderRadius: BorderRadius.circular(25),
         border: Border.all(
           color: isDark ? Colors.grey.shade800 : Colors.transparent,
           width: 1,
