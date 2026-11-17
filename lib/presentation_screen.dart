@@ -877,6 +877,8 @@ $stackString
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: _isDrawingMode ? null : _buildDefaultAppBar(),
@@ -887,6 +889,17 @@ $stackString
               AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 width: _isSidebarCollapsed ? 0 : 180,
+                decoration: BoxDecoration(
+                  boxShadow: _isSidebarCollapsed
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(isDark ? 0.35 : 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(3, 0),
+                          ),
+                        ],
+                ),
                 child: _isSidebarCollapsed
                     ? const SizedBox.shrink()
                     : _buildSidebar(),
@@ -896,20 +909,35 @@ $stackString
                   onTap: () => setState(
                           () => _isSidebarCollapsed = !_isSidebarCollapsed),
                   child: Container(
-                    width: 24,
-                    height: 60,
+                    width: 20,
+                    height: 52,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
+                      color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
                       borderRadius: const BorderRadius.horizontal(
-                          right: Radius.circular(12)),
+                          right: Radius.circular(10)),
+                      border: Border(
+                        top: BorderSide(
+                            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                        right: BorderSide(
+                            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                        bottom: BorderSide(
+                            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 6,
+                          offset: Offset(2, 0),
+                        ),
+                      ],
                     ),
                     child: Icon(
                       _isSidebarCollapsed
                           ? Icons.chevron_right
                           : Icons.chevron_left,
                       size: 16,
-                      color: Colors.grey,
+                      color: isDark ? Colors.white70 : Colors.grey.shade700,
                     ),
                   ),
                 ),
@@ -1424,7 +1452,15 @@ $stackString
   Widget _buildSidebar() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: isDark ? const Color(0xFF181825) : Colors.grey.shade200,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF181825) : Colors.grey.shade200,
+        border: Border(
+          right: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+            width: 1,
+          ),
+        ),
+      ),
       child: ListView.builder(
         controller: _sidebarScrollController,
         itemCount: _pages.length,
