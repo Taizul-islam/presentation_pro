@@ -1711,24 +1711,45 @@ $stackString
   }
 
   Widget _buildSlideNavigation() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? Colors.white : Colors.grey.shade700;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.horizontal(left: Radius.circular(25)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+        borderRadius: const BorderRadius.horizontal(left: Radius.circular(25)),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.transparent,
+          width: 1,
+        ),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-              icon: const Icon(Icons.arrow_left), onPressed: _previousPage),
-          Text('${_currentPageIndex + 1}',
-              style: const TextStyle(fontWeight: FontWeight.bold)),
-          IconButton(icon: const Icon(Icons.arrow_right), onPressed: _nextPage),
-          IconButton(icon: const Icon(Icons.add), tooltip: 'Add Slide', onPressed: _addNewSlide),
+            icon: Icon(Icons.arrow_left, color: iconColor),
+            onPressed: _previousPage,
+          ),
+          Text(
+            '${_currentPageIndex + 1}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+          ),
           IconButton(
-            icon: const Icon(Icons.remove),
+            icon: Icon(Icons.arrow_right, color: iconColor),
+            onPressed: _nextPage,
+          ),
+          IconButton(
+            icon: Icon(Icons.add, color: iconColor),
+            tooltip: 'Add Slide',
+            onPressed: _addNewSlide,
+          ),
+          IconButton(
+            icon: Icon(Icons.remove, color: iconColor),
             tooltip: 'Delete Slide',
             onPressed: _deleteCurrentSlide,
           ),
