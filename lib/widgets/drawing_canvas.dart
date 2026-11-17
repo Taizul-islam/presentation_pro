@@ -167,6 +167,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
           },
           child: Listener(
             onPointerDown: (PointerDownEvent event) {
+              if (widget.selectedTool == DrawingTool.hand) return;
               widget.onInteraction?.call();
               _checkHandTouch(event);
               final pos = event.localPosition;
@@ -184,6 +185,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               }
             },
             onPointerMove: (PointerMoveEvent event) {
+              if (widget.selectedTool == DrawingTool.hand) return;
               _checkHandTouch(event);
               final pos = event.localPosition;
               _updateDusterAngle(pos);
@@ -196,6 +198,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               }
             },
             onPointerUp: (PointerUpEvent event) {
+              if (widget.selectedTool == DrawingTool.hand) return;
               _lastPointerPos = null;
               widget.onHandTouchDetected?.call(false, 0.0);
               if (widget.selectedTool == DrawingTool.selector) {
@@ -207,6 +210,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               }
             },
             onPointerCancel: (PointerCancelEvent event) {
+              if (widget.selectedTool == DrawingTool.hand) return;
               _lastPointerPos = null;
               widget.onHandTouchDetected?.call(false, 0.0);
               if (_isDrawing) {
@@ -214,7 +218,9 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
                 widget.onStrokeEnd();
               }
             },
-            behavior: HitTestBehavior.opaque,
+            behavior: widget.selectedTool == DrawingTool.hand
+                ? HitTestBehavior.translucent
+                : HitTestBehavior.opaque,
             child: CustomPaint(
               size: Size.infinite,
               painter: DrawingPainter(

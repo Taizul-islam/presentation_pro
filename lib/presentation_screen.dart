@@ -76,12 +76,47 @@ class _PresentationScreenState extends State<PresentationScreen>
   final ScrollController _sidebarScrollController = ScrollController();
   final ScrollController _contextMenuScrollController = ScrollController();
   late PageController _pageController;
+  late TransformationController _transformationController;
+  double _currentZoomScale = 1.0;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentPageIndex);
+    _transformationController = TransformationController();
+    _transformationController.addListener(_onZoomChanged);
     _initializePages();
+  }
+
+  void _onZoomChanged() {
+    final scale = _transformationController.value.getMaxScaleOnAxis();
+    if ((scale - _currentZoomScale).abs() > 0.01) {
+      setState(() => _currentZoomScale = scale);
+    }
+  }
+
+  void _resetZoom() {
+    setState(() {
+      _transformationController.value = Matrix4.identity();
+      _currentZoomScale = 1.0;
+    });
+  }
+
+  void _zoomIn() {
+    final newScale = (_currentZoomScale + 0.25).clamp(1.0, 5.0);
+    _setZoomScale(newScale);
+  }
+
+  void _zoomOut() {
+    final newScale = (_currentZoomScale - 0.25).clamp(1.0, 5.0);
+    _setZoomScale(newScale);
+  }
+
+  void _setZoomScale(double targetScale) {
+    setState(() {
+      _currentZoomScale = targetScale;
+      _transformationController.value = Matrix4.diagonal3Values(targetScale, targetScale, 1.0);
+    });
   }
 
   void _initializePages() {
@@ -107,6 +142,8 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   @override
   void dispose() {
+    _transformationController.removeListener(_onZoomChanged);
+    _transformationController.dispose();
     _currentPdfDocument?.dispose();
     _sidebarScrollController.dispose();
     _contextMenuScrollController.dispose();
@@ -947,6 +984,72 @@ $stackString
                 ),
               ),
             ),
+          if (_isDrawingMode && _selectedTool == DrawingTool.hand)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 60,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove, size: 18),
+                        onPressed: _zoomOut,
+                        tooltip: 'Zoom Out',
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${(_currentZoomScale * 100).toInt()}%',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.indigo,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add, size: 18),
+                        onPressed: _zoomIn,
+                        tooltip: 'Zoom In',
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.center_focus_strong, size: 16),
+                        label: Text(
+                          'Reset (100%)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onPressed: _resetZoom,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           if (_isDrawingMode)
             Positioned(
               left: 0,
@@ -1215,6 +1318,7 @@ $stackString
                   ],
                 ),
                 child: InteractiveViewer(
+                  transformationController: _transformationController,
                   minScale: 1.0,
                   maxScale: 5.0,
                   panEnabled: _selectedTool == DrawingTool.hand,
