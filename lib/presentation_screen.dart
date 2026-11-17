@@ -1830,6 +1830,9 @@ $stackString
   }
 
   Widget _buildVerticalMenu() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final menuBg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+
     return SizedBox(
       width: 300,
       child: Stack(
@@ -1838,78 +1841,85 @@ $stackString
           Container(
             width: 150,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: menuBg,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade800 : Colors.transparent,
+                width: 1,
+              ),
               boxShadow: const [
                 BoxShadow(color: Colors.black12, blurRadius: 15)
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SamsungMenuItem(
-                  icon: Icons.note_add,
-                  label: 'New',
-                  onTap: () {
-                    setState(() => _isMenuVisible = false);
-                    _initializePages();
-                  },
-                ),
-                SamsungMenuItem(
-                  icon: Icons.file_open,
-                  label: 'Open',
-                  onTap: () {
-                    setState(() => _isMenuVisible = false);
-                    _pickDocument();
-                  },
-                ),
-                SamsungMenuItem(
-                  icon: Icons.delete_outline,
-                  label: 'Clear',
-                  onTap: () {
-                    setState(() => _isMenuVisible = false);
-                    _clearStrokes();
-                  },
-                ),
-                SamsungMenuItem(
-                  icon: Icons.print_outlined,
-                  label: 'Print',
-                  onTap: () {
-                    setState(() => _isMenuVisible = false);
-                    _printPresentation();
-                  },
-                ),
-                const Divider(height: 1),
-                SamsungMenuItem(
-                  icon: Icons.picture_as_pdf,
-                  label: 'Export PDF',
-                  onTap: () {
-                    setState(() => _isMenuVisible = false);
-                    _exportAsPdf();
-                  },
-                ),
-                const Divider(height: 1),
-                SamsungMenuItem(
-                  icon: Icons.computer,
-                  label: 'Mode',
-                  trailingIcon: Icons.arrow_right,
-                  onTap: () {
-                    setState(() =>
-                    _isModeSubMenuVisible = !_isModeSubMenuVisible);
-                  },
-                ),
-                const Divider(height: 1),
-                SamsungMenuItem(
-                  icon: Icons.close,
-                  label: 'Close',
-                  onTap: () {
-                    setState(() {
-                      _isMenuVisible = false;
-                      _isModeSubMenuVisible = false;
-                    });
-                  },
-                ),
-              ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SamsungMenuItem(
+                    icon: Icons.note_add,
+                    label: 'New',
+                    onTap: () {
+                      setState(() => _isMenuVisible = false);
+                      _initializePages();
+                    },
+                  ),
+                  SamsungMenuItem(
+                    icon: Icons.file_open,
+                    label: 'Open',
+                    onTap: () {
+                      setState(() => _isMenuVisible = false);
+                      _pickDocument();
+                    },
+                  ),
+                  SamsungMenuItem(
+                    icon: Icons.delete_outline,
+                    label: 'Clear',
+                    onTap: () {
+                      setState(() => _isMenuVisible = false);
+                      _clearStrokes();
+                    },
+                  ),
+                  SamsungMenuItem(
+                    icon: Icons.print_outlined,
+                    label: 'Print',
+                    onTap: () {
+                      setState(() => _isMenuVisible = false);
+                      _printPresentation();
+                    },
+                  ),
+                  Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                  SamsungMenuItem(
+                    icon: Icons.picture_as_pdf,
+                    label: 'Export PDF',
+                    onTap: () {
+                      setState(() => _isMenuVisible = false);
+                      _exportAsPdf();
+                    },
+                  ),
+                  Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                  SamsungMenuItem(
+                    icon: Icons.computer,
+                    label: 'Mode',
+                    trailingIcon: Icons.arrow_right,
+                    onTap: () {
+                      setState(() =>
+                      _isModeSubMenuVisible = !_isModeSubMenuVisible);
+                    },
+                  ),
+                  Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                  SamsungMenuItem(
+                    icon: Icons.close,
+                    label: 'Close',
+                    onTap: () {
+                      setState(() {
+                        _isMenuVisible = false;
+                        _isModeSubMenuVisible = false;
+                      });
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           if (_isModeSubMenuVisible)
@@ -1919,31 +1929,38 @@ $stackString
               child: Container(
                 width: 140,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: menuBg,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.grey.shade800 : Colors.transparent,
+                    width: 1,
+                  ),
                   boxShadow: const [
                     BoxShadow(color: Colors.black12, blurRadius: 15)
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildModeItem(
-                      icon: Icons.monitor,
-                      label: 'Teaching',
-                      onTap: () => _switchMode(AppMode.teaching),
-                    ),
-                    _buildModeItem(
-                      icon: Icons.edit_note,
-                      label: 'Preparation',
-                      onTap: () => _switchMode(AppMode.preparation),
-                    ),
-                    _buildModeItem(
-                      icon: Icons.desktop_windows,
-                      label: 'Desktop',
-                      onTap: () => _switchMode(AppMode.desktop),
-                    ),
-                  ],
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildModeItem(
+                        icon: Icons.monitor,
+                        label: 'Teaching',
+                        onTap: () => _switchMode(AppMode.teaching),
+                      ),
+                      _buildModeItem(
+                        icon: Icons.edit_note,
+                        label: 'Preparation',
+                        onTap: () => _switchMode(AppMode.preparation),
+                      ),
+                      _buildModeItem(
+                        icon: Icons.desktop_windows,
+                        label: 'Desktop',
+                        onTap: () => _switchMode(AppMode.desktop),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -2584,18 +2601,32 @@ $stackString
       {required IconData icon,
         required String label,
         required VoidCallback onTap}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+          border: Border(
+            bottom: BorderSide(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              width: 0.5,
+            ),
+          ),
+        ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: Colors.grey.shade700),
+            Icon(icon, size: 18, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
             const SizedBox(width: 12),
             Text(
               label,
               style: GoogleFonts.poppins(
-                  fontSize: 12, fontWeight: FontWeight.w500),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white : Colors.grey.shade800,
+              ),
             ),
           ],
         ),
