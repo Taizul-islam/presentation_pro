@@ -26,11 +26,17 @@ class StrokeWidthSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.transparent,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
@@ -45,7 +51,9 @@ class StrokeWidthSlider extends StatelessWidget {
           Icon(
             label.contains('Duster') ? Icons.auto_fix_high : Icons.edit,
             size: 14,
-            color: label.contains('Duster') ? Colors.orange : selectedColor,
+            color: label.contains('Duster')
+                ? Colors.orange
+                : (isDark ? Colors.indigoAccent : selectedColor),
           ),
           const SizedBox(width: 8),
 
@@ -55,7 +63,7 @@ class StrokeWidthSlider extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
             ),
           ),
           const SizedBox(width: 8),
@@ -80,14 +88,14 @@ class StrokeWidthSlider extends StatelessWidget {
                           ? (label.contains('Duster')
                               ? Colors.orange.shade800
                               : Colors.indigo)
-                          : Colors.grey.shade100,
+                          : (isDark ? const Color(0xFF2A2A3C) : Colors.grey.shade100),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: isSelected
                             ? (label.contains('Duster')
                                 ? Colors.orange.shade800
                                 : Colors.indigo)
-                            : Colors.grey.shade300,
+                            : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                       ),
                     ),
                     child: Center(
@@ -124,7 +132,7 @@ class StrokeWidthSlider extends StatelessWidget {
                 min: min,
                 max: max,
                 activeColor: label.contains('Duster') ? Colors.orange.shade700 : Colors.indigo,
-                inactiveColor: Colors.grey.shade200,
+                inactiveColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                 onChanged: onStrokeWidthChanged,
               ),
             ),
@@ -137,7 +145,7 @@ class StrokeWidthSlider extends StatelessWidget {
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: isDark ? const Color(0xFF2A2A3C) : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -145,7 +153,9 @@ class StrokeWidthSlider extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color: label.contains('Duster') ? Colors.orange.shade800 : Colors.indigo,
+                color: label.contains('Duster')
+                    ? Colors.orange.shade800
+                    : (isDark ? Colors.indigoAccent : Colors.indigo),
               ),
             ),
           ),
@@ -163,7 +173,10 @@ class StrokeWidthSlider extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: selectedColor,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                    border: Border.all(
+                      color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                      width: 1.5,
+                    ),
                     boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
                   ),
                 ),

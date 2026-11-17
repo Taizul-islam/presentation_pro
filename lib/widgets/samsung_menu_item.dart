@@ -19,18 +19,20 @@ class SamsungMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (isHeader) {
       return Container(
         width: 140,
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+          color: isDark ? const Color(0xFF181825) : Colors.black,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
         ),
         child: Row(
           children: [
             Icon(icon, color: Colors.white, size: 20),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
@@ -54,27 +56,34 @@ class SamsungMenuItem extends StatelessWidget {
         width: 140,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
           border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+            bottom: BorderSide(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              width: 0.5,
+            ),
           ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.grey.shade700, size: 18),
+            Icon(icon,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                size: 18),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
                 style: GoogleFonts.poppins(
-                  color: Colors.grey.shade800,
+                  color: isDark ? Colors.white : Colors.grey.shade800,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
             if (trailingIcon != null)
-              Icon(trailingIcon, color: Colors.grey.shade400, size: 14),
+              Icon(trailingIcon,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade400,
+                  size: 14),
           ],
         ),
       ),
