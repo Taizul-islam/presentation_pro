@@ -2493,7 +2493,7 @@ $stackString
     final newColor = await SmartColorPickerDialog.show(
       context: context,
       initialColor: initialColor,
-      title: 'Background Color',
+      title: 'Slide Background Color',
       icon: Icons.format_color_fill_outlined,
     );
 
