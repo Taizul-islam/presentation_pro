@@ -1347,7 +1347,7 @@ $stackString
                 _selectedTool == DrawingTool.eraser),
             _buildToolbarIcon(Icons.title, DrawingTool.text,
                 _selectedTool == DrawingTool.text),
-            _buildToolbarIcon(Icons.back_hand, DrawingTool.hand,
+            _buildToolbarIcon(Icons.pan_tool_outlined, DrawingTool.hand,
                 _selectedTool == DrawingTool.hand),
             _buildToolbarIcon(Icons.highlight, DrawingTool.highlighter,
                 _selectedTool == DrawingTool.highlighter),
@@ -1355,8 +1355,8 @@ $stackString
                 _selectedTool == DrawingTool.handwriting),
             IconButton(
               icon: Icon(
-                Icons.back_hand_outlined,
-                size: 22,
+                Icons.auto_awesome,
+                size: 20,
                 color: _isAutoHandDusterEnabled
                     ? Colors.orange.shade800
                     : Colors.grey,
@@ -1371,7 +1371,7 @@ $stackString
                   _isAutoHandDusterEnabled
                       ? Colors.orange.shade800
                       : Colors.grey.shade700,
-                  Icons.back_hand_outlined,
+                  Icons.auto_awesome,
                 );
               },
               tooltip: _isAutoHandDusterEnabled
