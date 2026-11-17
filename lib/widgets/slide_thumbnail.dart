@@ -55,7 +55,7 @@ class SlideThumbnail extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(5),
-              child: _buildThumbnailPreview(),
+              child: _buildThumbnailPreview(context),
             ),
           ),
         ),
@@ -63,13 +63,13 @@ class SlideThumbnail extends StatelessWidget {
     );
   }
 
-  Widget _buildThumbnailPreview() {
+  Widget _buildThumbnailPreview(BuildContext context) {
     final hasContent = page.strokes.isNotEmpty ||
         page.texts.isNotEmpty ||
         currentStroke != null;
     return Stack(
       children: [
-        Positioned.fill(child: _buildBackground(hasContent)),
+        Positioned.fill(child: _buildBackground(context, hasContent)),
         Positioned.fill(
           child: CustomPaint(
             painter: _ThumbnailPainter(
@@ -104,10 +104,15 @@ class SlideThumbnail extends StatelessWidget {
     );
   }
 
-  Widget _buildBackground(bool hasContent) {
+  Widget _buildBackground(BuildContext context, bool hasContent) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color bgColor = (page.backgroundColor != null && page.backgroundColor != Colors.white)
+        ? page.backgroundColor!
+        : (isDark ? const Color(0xFF181825) : Colors.white);
+
     // Blank slide
     if (page.contentPath == null || page.contentPath!.isEmpty) {
-      final bgColor = page.backgroundColor ?? Colors.white;
+      if (hasContent) return Container(color: bgColor);
       if (hasContent) return Container(color: bgColor);
 
       return Container(

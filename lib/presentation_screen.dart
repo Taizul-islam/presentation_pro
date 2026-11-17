@@ -1213,8 +1213,17 @@ $stackString
     );
   }
 
+  Color _getEffectiveSlideBackgroundColor(PresentationPage page, bool isDark) {
+    if (page.backgroundColor != null && page.backgroundColor != Colors.white) {
+      return page.backgroundColor!;
+    }
+    return isDark ? const Color(0xFF181825) : Colors.white;
+  }
+
   Widget _buildSlideItem(int index) {
     final page = _pages[index];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final slideBgColor = _getEffectiveSlideBackgroundColor(page, isDark);
     final isCurrentPage = _currentPageIndex == index;
     final isNearCurrent = (index - _currentPageIndex).abs() <= 1;
     final hasDrawing = page.strokes.isNotEmpty ||
@@ -1229,8 +1238,8 @@ $stackString
             children: [
               Positioned.fill(
                 child: isNearCurrent
-                    ? _buildPageContent(page, hasDrawing: hasDrawing)
-                    : Container(color: page.backgroundColor ?? Colors.white),
+                    ? _buildPageContent(page, hasDrawing: hasDrawing, slideBgColor: slideBgColor)
+                    : Container(color: slideBgColor),
               ),
               Positioned.fill(
                 child: DrawingCanvas(
@@ -1367,7 +1376,7 @@ $stackString
 
         if (isTeachingMode) {
           return Container(
-            color: page.backgroundColor ?? Colors.white,
+            color: slideBgColor,
             child: buildContent(constraints.maxWidth, constraints.maxHeight),
           );
         }
@@ -1380,7 +1389,7 @@ $stackString
               aspectRatio: page.aspectRatio ?? 16 / 9,
               child: Container(
                 decoration: BoxDecoration(
-                  color: page.backgroundColor ?? Colors.white,
+                  color: slideBgColor,
                   boxShadow: const [
                     BoxShadow(color: Colors.black26, blurRadius: 10)
                   ],
@@ -1406,11 +1415,12 @@ $stackString
     );
   }
 
-  Widget _buildPageContent(PresentationPage page, {bool hasDrawing = false}) {
+  Widget _buildPageContent(PresentationPage page,
+      {bool hasDrawing = false, Color slideBgColor = Colors.white}) {
     switch (page.contentType) {
       case PageContentType.pdf:
         if (_currentPdfDocument == null)
-          return _buildPlaceholder(page, isHidden: hasDrawing);
+          return _buildPlaceholder(page, isHidden: hasDrawing, bgColor: slideBgColor);
         return Center(
           child: PdfPageView(
             document: _currentPdfDocument!,
@@ -1420,31 +1430,51 @@ $stackString
         );
       case PageContentType.image:
         if (page.contentPath == null)
-          return _buildPlaceholder(page, isHidden: hasDrawing);
+          return _buildPlaceholder(page, isHidden: hasDrawing, bgColor: slideBgColor);
         return Image.file(
           File(page.contentPath!),
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,
-          errorBuilder: (context, error, stack) => _buildPlaceholder(page),
+          errorBuilder: (context, error, stack) =>
+              _buildPlaceholder(page, bgColor: slideBgColor),
         );
       default:
-        return _buildPlaceholder(page, isHidden: hasDrawing);
+        return _buildPlaceholder(page, isHidden: hasDrawing, bgColor: slideBgColor);
     }
   }
 
-  Widget _buildPlaceholder(PresentationPage page, {bool isHidden = false}) {
+  Widget _buildPlaceholder(PresentationPage page,
+      {bool isHidden = false, Color bgColor = Colors.white}) {
     if (isHidden) return const SizedBox.shrink();
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(page.icon, size: 64, color: Colors.grey),
-          Text(page.title,
+    final isLight = bgColor.computeLuminance() > 0.5;
+
+    return Container(
+      color: bgColor,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              page.icon,
+              size: 64,
+              color: isLight ? Colors.grey : Colors.white38,
+            ),
+            Text(
+              page.title,
               style: GoogleFonts.poppins(
-                  fontSize: 24, fontWeight: FontWeight.bold)),
-          Text(page.subtitle,
-              style: GoogleFonts.poppins(color: Colors.grey)),
-        ],
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: isLight ? Colors.black87 : Colors.white,
+              ),
+            ),
+            Text(
+              page.subtitle,
+              style: GoogleFonts.poppins(
+                color: isLight ? Colors.grey : Colors.white70,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

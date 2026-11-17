@@ -24,7 +24,7 @@ class SamsungMenuItem extends StatelessWidget {
     if (isHeader) {
       return Container(
         width: 140,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric( vertical: 10),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF181825) : Colors.black,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
