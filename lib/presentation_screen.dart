@@ -916,6 +916,19 @@ $stackString
             ],
           ),
           if (_isDrawingMode && _isMenuVisible)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isMenuVisible = false;
+                    _isModeSubMenuVisible = false;
+                  });
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          if (_isDrawingMode && _isMenuVisible)
             Positioned(
               left: 30,
               bottom: 60,
@@ -1766,6 +1779,17 @@ $stackString
                   onTap: () {
                     setState(() =>
                     _isModeSubMenuVisible = !_isModeSubMenuVisible);
+                  },
+                ),
+                const Divider(height: 1),
+                SamsungMenuItem(
+                  icon: Icons.close,
+                  label: 'Close',
+                  onTap: () {
+                    setState(() {
+                      _isMenuVisible = false;
+                      _isModeSubMenuVisible = false;
+                    });
                   },
                 ),
               ],
