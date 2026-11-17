@@ -1444,6 +1444,8 @@ $stackString
 
   Widget _buildBottomLeftMenu() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? Colors.white : Colors.grey.shade800;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -1455,31 +1457,38 @@ $stackString
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-              icon: const Icon(Icons.menu),
+              icon: Icon(Icons.menu, color: iconColor),
               onPressed: () =>
                   setState(() => _isMenuVisible = !_isMenuVisible)),
-          IconButton(icon: const Icon(Icons.monitor), onPressed: () {}),
+          IconButton(icon: Icon(Icons.monitor, color: iconColor), onPressed: () {}),
           IconButton(
-            icon: const Icon(Icons.build),
+            icon: Icon(Icons.build, color: iconColor),
             tooltip: 'Settings',
             onPressed: () => SettingsDialog.show(context),
           ),
           IconButton(
-              icon: const Icon(Icons.cloud_upload), onPressed: _pickDocument),
-          IconButton(icon: const Icon(Icons.zoom_in), onPressed: () {}),
+              icon: Icon(Icons.cloud_upload, color: iconColor), onPressed: _pickDocument),
+          IconButton(icon: Icon(Icons.zoom_in, color: iconColor), onPressed: () {}),
         ],
       ),
     );
   }
 
   Widget _buildFloatingToolbar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? Colors.white : Colors.grey.shade700;
+
     return Center(
       child: Container(
         height: 50,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
           borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: isDark ? Colors.grey.shade800 : Colors.transparent,
+            width: 1,
+          ),
           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
         ),
         child: Row(
@@ -1488,7 +1497,7 @@ $stackString
             _buildToolbarIcon(Icons.near_me, DrawingTool.selector,
                 _selectedTool == DrawingTool.selector),
             IconButton(
-              icon: const Icon(Icons.format_color_fill, size: 22),
+              icon: Icon(Icons.format_color_fill, size: 22, color: iconColor),
               onPressed: _showBackgroundColorPicker,
               tooltip: 'Background Color',
             ),
@@ -1512,7 +1521,7 @@ $stackString
                 size: 20,
                 color: _isAutoHandDusterEnabled
                     ? Colors.orange.shade800
-                    : Colors.grey,
+                    : (isDark ? Colors.white54 : Colors.grey),
               ),
               onPressed: () {
                 setState(() =>
@@ -1531,9 +1540,12 @@ $stackString
                   ? 'Auto Hand Duster AI: ON'
                   : 'Auto Hand Duster AI: OFF',
             ),
-            const VerticalDivider(width: 20),
-            IconButton(icon: const Icon(Icons.undo), onPressed: _undo),
-            IconButton(icon: const Icon(Icons.redo), onPressed: _redo),
+            VerticalDivider(
+              width: 20,
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+            IconButton(icon: Icon(Icons.undo, color: iconColor), onPressed: _undo),
+            IconButton(icon: Icon(Icons.redo, color: iconColor), onPressed: _redo),
           ],
         ),
       ),
@@ -1681,8 +1693,14 @@ $stackString
   }
 
   Widget _buildToolbarIcon(IconData icon, DrawingTool? tool, bool isSelected) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return IconButton(
-      icon: Icon(icon, color: isSelected ? Colors.indigo : Colors.grey),
+      icon: Icon(
+        icon,
+        color: isSelected
+            ? (isDark ? Colors.indigoAccent : Colors.indigo)
+            : (isDark ? Colors.white : Colors.grey.shade700),
+      ),
       onPressed: tool == null
           ? null
           : () {
