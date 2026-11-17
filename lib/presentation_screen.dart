@@ -1688,7 +1688,12 @@ $stackString
           Text('${_currentPageIndex + 1}',
               style: const TextStyle(fontWeight: FontWeight.bold)),
           IconButton(icon: const Icon(Icons.arrow_right), onPressed: _nextPage),
-          IconButton(icon: const Icon(Icons.add), onPressed: _addNewSlide),
+          IconButton(icon: const Icon(Icons.add), tooltip: 'Add Slide', onPressed: _addNewSlide),
+          IconButton(
+            icon: const Icon(Icons.remove),
+            tooltip: 'Delete Slide',
+            onPressed: _deleteCurrentSlide,
+          ),
         ],
       ),
     );
@@ -2587,6 +2592,101 @@ $stackString
         icon: Icons.note_add,
       ));
     });
+  }
+
+  Future<void> _deleteCurrentSlide() async {
+    if (_pages.length <= 1) {
+      _showSnackBar(
+        'Cannot delete the only remaining slide.',
+        Colors.orange.shade800,
+        Icons.warning_amber_rounded,
+      );
+      return;
+    }
+
+    final int slideNumberToDelete = _currentPageIndex + 1;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.delete_outline, color: Colors.red.shade700),
+            const SizedBox(width: 8),
+            Text(
+              'Delete Slide $slideNumberToDelete',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete Slide $slideNumberToDelete?\nThis action cannot be undone.',
+          style: GoogleFonts.poppins(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      _saveToHistory();
+
+      _pages.removeAt(_currentPageIndex);
+
+      final List<PresentationPage> updatedPages = [];
+      for (int i = 0; i < _pages.length; i++) {
+        final p = _pages[i];
+        updatedPages.add(PresentationPage(
+          pageNumber: i + 1,
+          title: 'Slide ${i + 1}',
+          subtitle: p.subtitle,
+          icon: p.icon,
+          strokes: p.strokes,
+          texts: p.texts,
+          contentType: p.contentType,
+          contentPath: p.contentPath,
+          pdfPageIndex: p.pdfPageIndex,
+          extraData: p.extraData,
+          backgroundColor: p.backgroundColor,
+          aspectRatio: p.aspectRatio,
+        ));
+      }
+      _pages = updatedPages;
+
+      int targetIndex = _currentPageIndex;
+      if (targetIndex >= _pages.length) {
+        targetIndex = _pages.length - 1;
+      }
+
+      _currentPageIndex = targetIndex;
+    });
+
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(_currentPageIndex);
+    }
+
+    _showSnackBar(
+      'Slide $slideNumberToDelete deleted.',
+      Colors.red.shade700,
+      Icons.delete_outline,
+    );
   }
 
   void _previousPage() {
