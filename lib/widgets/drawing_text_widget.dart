@@ -96,18 +96,17 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
         behavior: HitTestBehavior.opaque,
         child: Container(
           width: widget.element.width + (padding * 2),
-          // We use a transparent background to ensure hit testing works across the entire area
           color: Colors.transparent,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // This column naturally sizes itself to the text height
+              // Text Content Container with Selection Border
               Padding(
                 padding: const EdgeInsets.all(padding),
                 child: Container(
                   decoration: BoxDecoration(
                     border: widget.isSelected
-                        ? Border.all(color: Colors.blue.withOpacity(0.5), width: 1)
+                        ? Border.all(color: const Color(0xFF18A0FB), width: 1.5)
                         : null,
                   ),
                   child: TextField(
@@ -126,10 +125,12 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                   ),
                 ),
               ),
+
+              // Lock Badge
               if (widget.isSelected && widget.element.isLocked)
                 Positioned(
-                  left: padding - 12,
-                  top: padding - 12,
+                  left: padding - 10,
+                  top: padding - 10,
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -137,18 +138,19 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.red.shade400, width: 1.5),
                     ),
-                    child: Icon(Icons.lock, size: 14, color: Colors.red.shade700),
+                    child: Icon(Icons.lock, size: 12, color: Colors.red.shade700),
                   ),
                 ),
+
+              // Professional Figma-Style Handles (when selected and unlocked)
               if (widget.isSelected && !widget.element.isLocked) ...[
-                // Side handles - Placed relative to the edges of the box
-                // Left circle
+                // Left Midpoint Width Handle (Circle)
                 Positioned(
-                  left: padding - 12,
+                  left: padding - 10,
                   top: padding,
                   bottom: padding,
                   child: Center(
-                    child: _buildHandle(
+                    child: _buildCircleHandle(
                       cursor: SystemMouseCursors.resizeLeftRight,
                       tooltip: 'Resize Width',
                       onStart: (details) {
@@ -165,13 +167,14 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                     ),
                   ),
                 ),
-                // Right circle
+
+                // Right Midpoint Width Handle (Circle)
                 Positioned(
-                  right: padding - 12,
+                  right: padding - 10,
                   top: padding,
                   bottom: padding,
                   child: Center(
-                    child: _buildHandle(
+                    child: _buildCircleHandle(
                       cursor: SystemMouseCursors.resizeLeftRight,
                       tooltip: 'Resize Width',
                       onStart: (details) {
@@ -187,56 +190,31 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                     ),
                   ),
                 ),
-                // Bottom right scale handle (Sleek diagonal arrow badge)
+
+                // Bottom-Right Corner Scale Handle (Square)
                 Positioned(
                   right: padding - 10,
                   bottom: padding - 10,
-                  child: MouseRegion(
+                  child: _buildSquareHandle(
                     cursor: SystemMouseCursors.resizeUpLeftDownRight,
-                    child: Tooltip(
-                      message: 'Resize & Scale Font Size',
-                      child: GestureDetector(
-                        onPanStart: (details) {
-                          _startWidth = widget.element.width;
-                          _startFontSize = widget.element.fontSize;
-                          _startGlobalPos = details.globalPosition;
-                          widget.onInteractionStart?.call();
-                        },
-                        onPanUpdate: (details) {
-                          if (widget.onScaleChanged != null) {
-                            double deltaX = details.globalPosition.dx - _startGlobalPos.dx;
-                            double deltaY = details.globalPosition.dy - _startGlobalPos.dy;
-                            double totalDelta = (deltaX + deltaY);
-                            double newWidth = (_startWidth + totalDelta).clamp(40.0, 2000.0);
-                            double scale = newWidth / _startWidth;
-                            double newFontSize = (_startFontSize * scale).clamp(8.0, 500.0);
-                            widget.onScaleChanged!(newWidth, newFontSize);
-                          }
-                        },
-                        behavior: HitTestBehavior.opaque,
-                        child: Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade600,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(4),
-                              bottomRight: Radius.circular(8),
-                            ),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black26, blurRadius: 3)
-                            ],
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.south_east,
-                              size: 13,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    tooltip: 'Scale Font Size',
+                    onStart: (details) {
+                      _startWidth = widget.element.width;
+                      _startFontSize = widget.element.fontSize;
+                      _startGlobalPos = details.globalPosition;
+                      widget.onInteractionStart?.call();
+                    },
+                    onUpdate: (details) {
+                      if (widget.onScaleChanged != null) {
+                        double deltaX = details.globalPosition.dx - _startGlobalPos.dx;
+                        double deltaY = details.globalPosition.dy - _startGlobalPos.dy;
+                        double totalDelta = (deltaX + deltaY);
+                        double newWidth = (_startWidth + totalDelta).clamp(40.0, 2000.0);
+                        double scale = newWidth / _startWidth;
+                        double newFontSize = (_startFontSize * scale).clamp(8.0, 500.0);
+                        widget.onScaleChanged!(newWidth, newFontSize);
+                      }
+                    },
                   ),
                 ),
               ],
@@ -247,7 +225,7 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
     );
   }
 
-  Widget _buildHandle({
+  Widget _buildSquareHandle({
     required MouseCursor cursor,
     required String tooltip,
     required Function(DragStartDetails) onStart,
@@ -262,18 +240,54 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
           onPanUpdate: onUpdate,
           behavior: HitTestBehavior.opaque,
           child: Container(
-            width: 24,
-            height: 24,
+            width: 20,
+            height: 20,
             alignment: Alignment.center,
             color: Colors.transparent,
             child: Container(
-              width: 12,
-              height: 12,
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.rectangle,
+                borderRadius: BorderRadius.circular(1.5),
+                border: Border.all(color: const Color(0xFF18A0FB), width: 1.5),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCircleHandle({
+    required MouseCursor cursor,
+    required String tooltip,
+    required Function(DragStartDetails) onStart,
+    required Function(DragUpdateDetails) onUpdate,
+  }) {
+    return MouseRegion(
+      cursor: cursor,
+      child: Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          onPanStart: onStart,
+          onPanUpdate: onUpdate,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            color: Colors.transparent,
+            child: Container(
+              width: 9,
+              height: 9,
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.blue.shade600, width: 2.0),
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 3)],
+                border: Border.all(color: const Color(0xFF18A0FB), width: 1.5),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
               ),
             ),
           ),
@@ -293,7 +307,6 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
         color: widget.element.color,
       );
     } catch (e) {
-      // Fallback to system default if Google Font fails
       return TextStyle(
         fontSize: widget.element.fontSize,
         fontWeight: widget.element.isBold ? FontWeight.bold : FontWeight.normal,
@@ -303,22 +316,4 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
       );
     }
   }
-}
-
-class TrianglePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.grey.shade400
-      ..style = PaintingStyle.fill;
-    final path = Path()
-      ..moveTo(size.width, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
