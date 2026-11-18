@@ -1916,14 +1916,6 @@ $stackString
                     },
                   ),
                   SamsungMenuItem(
-                    icon: Icons.delete_outline,
-                    label: 'Clear',
-                    onTap: () {
-                      setState(() => _isMenuVisible = false);
-                      _clearStrokes();
-                    },
-                  ),
-                  SamsungMenuItem(
                     icon: Icons.print_outlined,
                     label: 'Print',
                     onTap: () {
