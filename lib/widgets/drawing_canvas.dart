@@ -69,7 +69,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   bool _isDrawing = false;
   Rect? _selectionRect;
   List<int> _selectedIndices = [];
-  List<int> _lastSelectedIndices = [];
+  final Set<int> _previouslyMovedIndices = {};
   Offset? _dragStart;
   Offset? _currentDragOffset;
   bool _isMoving = false;
@@ -334,16 +334,16 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       }
     }
 
-    // Check for 1-Tap Re-Selection on previously selected/moved drawing
-    if (_lastSelectedIndices.isNotEmpty && _lastCanvasSize != null) {
+    // Check for 1-Tap Re-Selection on ALL previously selected/moved drawings
+    if (_previouslyMovedIndices.isNotEmpty && _lastCanvasSize != null) {
       final size = _lastCanvasSize!;
-      for (final i in _lastSelectedIndices) {
+      for (final i in _previouslyMovedIndices.toList().reversed) {
         if (i < widget.strokes.length) {
           final stroke = widget.strokes[i];
           final scaledStroke = _scaleStrokeToPixels(stroke, size);
           if (_isPointNearStroke(position, scaledStroke, 22.0)) {
             setState(() {
-              _selectedIndices = List.from(_lastSelectedIndices);
+              _selectedIndices = [i];
               _isMoving = true;
               _dragStart = position;
               _currentDragOffset = Offset.zero;
@@ -487,7 +487,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
 
   void _notifySelectionChanged() {
     if (_selectedIndices.isNotEmpty) {
-      _lastSelectedIndices = List.from(_selectedIndices);
+      _previouslyMovedIndices.addAll(_selectedIndices);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
