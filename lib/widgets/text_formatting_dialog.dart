@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/drawing_stroke.dart';
+import 'color_picker.dart';
 
 class TextFormattingDialog extends StatelessWidget {
   final DrawingText element;
   final Function(DrawingText) onChanged;
   final VoidCallback onClose;
+  final VoidCallback? onDelete;
 
   const TextFormattingDialog({
     Key? key,
     required this.element,
     required this.onChanged,
     required this.onClose,
+    this.onDelete,
   }) : super(key: key);
 
   @override
@@ -47,6 +50,15 @@ class TextFormattingDialog extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                if (onDelete != null) ...[
+                  IconButton(
+                    icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
+                    onPressed: onDelete,
+                    tooltip: 'Delete Text',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 IconButton(
                   icon: const Icon(Icons.close, size: 18),
                   onPressed: onClose,
@@ -57,7 +69,7 @@ class TextFormattingDialog extends StatelessWidget {
             const Divider(),
             _buildFontRow(),
             const SizedBox(height: 12),
-            _buildStyleRow(),
+            _buildStyleRow(context),
             const SizedBox(height: 12),
             _buildAlignmentRow(),
           ],
@@ -132,7 +144,7 @@ class TextFormattingDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildStyleRow() {
+  Widget _buildStyleRow(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -140,7 +152,7 @@ class TextFormattingDialog extends StatelessWidget {
         _buildToggle(Icons.format_italic, element.isItalic, (val) => onChanged(element.copyWith(isItalic: val))),
         _buildToggle(Icons.format_underlined, element.isUnderlined, (val) => onChanged(element.copyWith(isUnderlined: val))),
         const VerticalDivider(),
-        _buildColorPicker(),
+        _buildColorPicker(context),
       ],
     );
   }
@@ -176,13 +188,18 @@ class TextFormattingDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildColorPicker() {
+  Widget _buildColorPicker(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // Here we could open a full color picker, but for simplicity let's toggle between a few
-        final colors = [Colors.black, Colors.red, Colors.blue, Colors.green, Colors.orange];
-        int current = colors.indexOf(element.color);
-        onChanged(element.copyWith(color: colors[(current + 1) % colors.length]));
+      onTap: () async {
+        final newColor = await SmartColorPickerDialog.show(
+          context: context,
+          initialColor: element.color,
+          title: 'Text Color',
+          icon: Icons.format_color_fill,
+        );
+        if (newColor != null) {
+          onChanged(element.copyWith(color: newColor));
+        }
       },
       child: Container(
         width: 24,
@@ -190,7 +207,8 @@ class TextFormattingDialog extends StatelessWidget {
         decoration: BoxDecoration(
           color: element.color,
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: Colors.grey.shade300, width: 1.5),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
         ),
       ),
     );

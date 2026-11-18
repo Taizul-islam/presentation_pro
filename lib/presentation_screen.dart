@@ -1353,6 +1353,7 @@ $stackString
               }),
               if (isCurrentPage &&
                   _activeSelectionRect != null &&
+                  _activeSelectedIndices.isNotEmpty &&
                   _selectedTool == DrawingTool.selector) ...[
                 _buildVerticalSelectionToolbar(
                     _activeSelectionRect!, slideWidth, slideHeight),
@@ -1380,6 +1381,7 @@ $stackString
                         _updateTextElement(_activeTextIndex!, updated),
                     onClose: () =>
                         setState(() => _isTextFormattingVisible = false),
+                    onDelete: _deleteSelectedText,
                   ),
                 ),
             ],
@@ -2493,6 +2495,25 @@ $stackString
           _pages[_currentPageIndex].copyWith(texts: updatedTexts);
       _pages = List.from(_pages);
     });
+  }
+
+  void _deleteSelectedText() {
+    if (_activeTextIndex == null) return;
+    setState(() {
+      _saveToHistory();
+      final updatedTexts =
+          List<DrawingText>.from(_pages[_currentPageIndex].texts);
+      if (_activeTextIndex! < updatedTexts.length) {
+        updatedTexts.removeAt(_activeTextIndex!);
+      }
+      _pages[_currentPageIndex] =
+          _pages[_currentPageIndex].copyWith(texts: updatedTexts);
+      _pages = List.from(_pages);
+      _activeTextIndex = null;
+      _isTextFormattingVisible = false;
+    });
+    _showSnackBar(
+        'Text box deleted.', Colors.red.shade700, Icons.delete_outline);
   }
 
   void _updateSelectedStrokesWidth(double width) {
