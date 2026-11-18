@@ -2423,10 +2423,16 @@ $stackString
   }
 
   void _handleTextCreated(Offset position) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final defaultTextColor = isDark ? Colors.white : Colors.black;
+
     setState(() {
       _saveToHistory();
 
-      final newText = DrawingText(position: position);
+      final newText = DrawingText(
+        position: position,
+        color: defaultTextColor,
+      );
       final updatedTexts =
       List<DrawingText>.from(_pages[_currentPageIndex].texts)
         ..add(newText);
