@@ -69,6 +69,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   bool _isDrawing = false;
   Rect? _selectionRect;
   List<int> _selectedIndices = [];
+  List<int> _lastSelectedIndices = [];
   Offset? _dragStart;
   Offset? _currentDragOffset;
   bool _isMoving = false;
@@ -333,24 +334,26 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       }
     }
 
-    // Check for direct 1-Tap Stroke Selection
-    if (_lastCanvasSize != null) {
+    // Check for 1-Tap Re-Selection on previously selected/moved drawing
+    if (_lastSelectedIndices.isNotEmpty && _lastCanvasSize != null) {
       final size = _lastCanvasSize!;
-      for (int i = widget.strokes.length - 1; i >= 0; i--) {
-        final stroke = widget.strokes[i];
-        final scaledStroke = _scaleStrokeToPixels(stroke, size);
-        if (_isPointNearStroke(position, scaledStroke, 18.0)) {
-          setState(() {
-            _selectedIndices = [i];
-            _isMoving = true;
-            _dragStart = position;
-            _currentDragOffset = Offset.zero;
-            _activeHandleIndex = null;
-            _isRotating = false;
-            _refreshSelectionRect();
-          });
-          _notifySelectionChanged();
-          return;
+      for (final i in _lastSelectedIndices) {
+        if (i < widget.strokes.length) {
+          final stroke = widget.strokes[i];
+          final scaledStroke = _scaleStrokeToPixels(stroke, size);
+          if (_isPointNearStroke(position, scaledStroke, 22.0)) {
+            setState(() {
+              _selectedIndices = List.from(_lastSelectedIndices);
+              _isMoving = true;
+              _dragStart = position;
+              _currentDragOffset = Offset.zero;
+              _activeHandleIndex = null;
+              _isRotating = false;
+              _refreshSelectionRect();
+            });
+            _notifySelectionChanged();
+            return;
+          }
         }
       }
     }
@@ -483,6 +486,9 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   }
 
   void _notifySelectionChanged() {
+    if (_selectedIndices.isNotEmpty) {
+      _lastSelectedIndices = List.from(_selectedIndices);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         widget.onSelectionChanged?.call(_selectionRect, _selectedIndices);
