@@ -149,6 +149,8 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                   bottom: padding,
                   child: Center(
                     child: _buildHandle(
+                      cursor: SystemMouseCursors.resizeLeftRight,
+                      tooltip: 'Resize Width',
                       onStart: (details) {
                         _startWidth = widget.element.width;
                         _startGlobalPos = details.globalPosition;
@@ -156,14 +158,8 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                       },
                       onUpdate: (details) {
                         double totalDeltaX = details.globalPosition.dx - _startGlobalPos.dx;
-                        
-                        // Width should be start width minus the total distance moved
                         double newWidth = (_startWidth - totalDeltaX).clamp(40.0, 2000.0);
-                        
-                        // To correctly resize from the left, we must move the box's position 
-                        // by EXACTLY the amount the width changed.
-                        // We use the frame-by-frame delta for the position change.
-                        widget.onPositionChanged(Offset(details.delta.dx, 0)); 
+                        widget.onPositionChanged(Offset(details.delta.dx, 0));
                         widget.onWidthChanged(newWidth);
                       },
                     ),
@@ -176,6 +172,8 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                   bottom: padding,
                   child: Center(
                     child: _buildHandle(
+                      cursor: SystemMouseCursors.resizeLeftRight,
+                      tooltip: 'Resize Width',
                       onStart: (details) {
                         _startWidth = widget.element.width;
                         _startGlobalPos = details.globalPosition;
@@ -189,41 +187,54 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                     ),
                   ),
                 ),
-                // Bottom right scale handle (triangle)
+                // Bottom right scale handle (Sleek diagonal arrow badge)
                 Positioned(
-                  right: padding - 20,
-                  bottom: padding - 20,
-                  child: GestureDetector(
-                    onPanStart: (details) {
-                      _startWidth = widget.element.width;
-                      _startFontSize = widget.element.fontSize;
-                      _startGlobalPos = details.globalPosition;
-                      widget.onInteractionStart?.call();
-                    },
-                    onPanUpdate: (details) {
-                      if (widget.onScaleChanged != null) {
-                        double deltaX = details.globalPosition.dx - _startGlobalPos.dx;
-                        double deltaY = details.globalPosition.dy - _startGlobalPos.dy;
-                        
-                        // Combined delta for responsive growth
-                        double totalDelta = (deltaX + deltaY);
-                        
-                        double newWidth = (_startWidth + totalDelta).clamp(40.0, 2000.0);
-                        double scale = newWidth / _startWidth;
-                        double newFontSize = (_startFontSize * scale).clamp(8.0, 500.0);
-                        
-                        widget.onScaleChanged!(newWidth, newFontSize);
-                      }
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      color: Colors.transparent,
-                      alignment: Alignment.center,
-                      child: CustomPaint(
-                        painter: TrianglePainter(),
-                        size: const Size(20, 20),
+                  right: padding - 10,
+                  bottom: padding - 10,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.resizeUpLeftDownRight,
+                    child: Tooltip(
+                      message: 'Resize & Scale Font Size',
+                      child: GestureDetector(
+                        onPanStart: (details) {
+                          _startWidth = widget.element.width;
+                          _startFontSize = widget.element.fontSize;
+                          _startGlobalPos = details.globalPosition;
+                          widget.onInteractionStart?.call();
+                        },
+                        onPanUpdate: (details) {
+                          if (widget.onScaleChanged != null) {
+                            double deltaX = details.globalPosition.dx - _startGlobalPos.dx;
+                            double deltaY = details.globalPosition.dy - _startGlobalPos.dy;
+                            double totalDelta = (deltaX + deltaY);
+                            double newWidth = (_startWidth + totalDelta).clamp(40.0, 2000.0);
+                            double scale = newWidth / _startWidth;
+                            double newFontSize = (_startFontSize * scale).clamp(8.0, 500.0);
+                            widget.onScaleChanged!(newWidth, newFontSize);
+                          }
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade600,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(4),
+                              bottomRight: Radius.circular(8),
+                            ),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 3)
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.south_east,
+                              size: 13,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -237,26 +248,34 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
   }
 
   Widget _buildHandle({
+    required SystemMouseCursor cursor,
+    required String tooltip,
     required Function(DragStartDetails) onStart,
     required Function(DragUpdateDetails) onUpdate,
   }) {
-    return GestureDetector(
-      onPanStart: onStart,
-      onPanUpdate: onUpdate,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 24,
-        height: 24,
-        alignment: Alignment.center,
-        color: Colors.transparent, // Expansion for hit testing
-        child: Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.blue, width: 1.5),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
+    return MouseRegion(
+      cursor: cursor,
+      child: Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          onPanStart: onStart,
+          onPanUpdate: onUpdate,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            color: Colors.transparent,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.blue.shade600, width: 2.0),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 3)],
+              ),
+            ),
           ),
         ),
       ),
