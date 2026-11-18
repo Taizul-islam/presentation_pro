@@ -248,7 +248,7 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
   }
 
   Widget _buildHandle({
-    required SystemMouseCursor cursor,
+    required MouseCursor cursor,
     required String tooltip,
     required Function(DragStartDetails) onStart,
     required Function(DragUpdateDetails) onUpdate,
