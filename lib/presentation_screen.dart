@@ -1523,12 +1523,14 @@ $stackString
   Widget _buildBottomLeftMenu() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final iconColor = isDark ? Colors.white : Colors.grey.shade800;
+    final isTeaching = _currentMode == AppMode.teaching;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-        borderRadius: BorderRadius.only(topRight: Radius.circular(25),bottomRight: Radius.circular(25)),
+        borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(25), bottomRight: Radius.circular(25)),
         border: Border.all(
           color: isDark ? Colors.grey.shade800 : Colors.transparent,
           width: 1,
@@ -1542,7 +1544,22 @@ $stackString
               icon: Icon(Icons.menu, color: iconColor),
               onPressed: () =>
                   setState(() => _isMenuVisible = !_isMenuVisible)),
-          IconButton(icon: Icon(Icons.monitor, color: iconColor), onPressed: () {}),
+          IconButton(
+            icon: Icon(
+              Icons.monitor,
+              color: isTeaching
+                  ? (isDark ? Colors.indigoAccent : Colors.indigo)
+                  : iconColor,
+            ),
+            tooltip: isTeaching ? 'Teaching Mode (Active)' : 'Activate Teaching Mode',
+            onPressed: () {
+              if (isTeaching) {
+                _switchMode(AppMode.preparation);
+              } else {
+                _switchMode(AppMode.teaching);
+              }
+            },
+          ),
           IconButton(
             icon: Icon(Icons.build, color: iconColor),
             tooltip: 'Settings',
@@ -2667,6 +2684,16 @@ $stackString
         await windowManager.minimize();
       }
     }
+
+    _showSnackBar(
+      mode == AppMode.teaching
+          ? 'Teaching Mode Activated'
+          : (mode == AppMode.desktop
+              ? 'Desktop Mode Activated'
+              : 'Preparation Mode Activated'),
+      mode == AppMode.teaching ? Colors.indigo : Colors.grey.shade800,
+      Icons.monitor,
+    );
   }
 
   Widget _buildLoadingOverlay() {
