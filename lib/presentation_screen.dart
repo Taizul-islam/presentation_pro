@@ -1566,7 +1566,22 @@ $stackString
           ),
           IconButton(
               icon: Icon(Icons.cloud_upload, color: iconColor), onPressed: _pickDocument),
-          IconButton(icon: Icon(Icons.zoom_in, color: iconColor), onPressed: () {}),
+          IconButton(
+            icon: Icon(
+              Icons.zoom_in,
+              color: _selectedTool == DrawingTool.hand
+                  ? (isDark ? Colors.indigoAccent : Colors.indigo)
+                  : iconColor,
+            ),
+            tooltip: 'Zoom & Pan View',
+            onPressed: () {
+              if (_selectedTool == DrawingTool.hand) {
+                _resetZoom();
+              } else {
+                setState(() => _selectedTool = DrawingTool.hand);
+              }
+            },
+          ),
         ],
       ),
     );
