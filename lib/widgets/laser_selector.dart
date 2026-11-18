@@ -58,6 +58,7 @@ class LaserPointerToolbar extends StatelessWidget {
             children: [
               Expanded(
                 child: _buildModeCard(
+                  context: context,
                   mode: LaserMode.laserDot,
                   title: 'Laser Pointer',
                   subtitle: 'Fading laser trail',
@@ -68,6 +69,7 @@ class LaserPointerToolbar extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildModeCard(
+                  context: context,
                   mode: LaserMode.spotlight,
                   title: 'Torch Spotlight',
                   subtitle: 'Focus beam on slide',
@@ -182,6 +184,7 @@ class LaserPointerToolbar extends StatelessWidget {
   }
 
   Widget _buildModeCard({
+    required BuildContext context,
     required LaserMode mode,
     required String title,
     required String subtitle,

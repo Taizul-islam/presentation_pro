@@ -55,6 +55,7 @@ class RealDusterToolbar extends StatelessWidget {
             children: [
               Expanded(
                 child: _buildDusterTypeCard(
+                  context: context,
                   type: DusterType.feltBlock,
                   title: 'Felt Duster',
                   subtitle: 'Classroom felt block',
@@ -65,6 +66,7 @@ class RealDusterToolbar extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildDusterTypeCard(
+                  context: context,
                   type: DusterType.sponge,
                   title: 'Sponge',
                   subtitle: 'Soft microfiber',
@@ -75,6 +77,7 @@ class RealDusterToolbar extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildDusterTypeCard(
+                  context: context,
                   type: DusterType.precision,
                   title: 'Precision',
                   subtitle: 'Point eraser',
@@ -110,30 +113,35 @@ class RealDusterToolbar extends StatelessWidget {
                     child: Row(
                       children: [
                         _buildOrientationChip(
+                          context: context,
                           orientation: DusterOrientation.rightHand,
                           label: 'Right Hand (15°)',
                           icon: Icons.front_hand,
                         ),
                         const SizedBox(width: 6),
                         _buildOrientationChip(
+                          context: context,
                           orientation: DusterOrientation.horizontal,
                           label: 'Horizontal (0°)',
                           icon: Icons.horizontal_rule,
                         ),
                         const SizedBox(width: 6),
                         _buildOrientationChip(
+                          context: context,
                           orientation: DusterOrientation.leftHand,
                           label: 'Left Hand (-15°)',
                           icon: Icons.back_hand,
                         ),
                         const SizedBox(width: 6),
                         _buildOrientationChip(
+                          context: context,
                           orientation: DusterOrientation.vertical,
                           label: 'Vertical (90°)',
                           icon: Icons.height,
                         ),
                         const SizedBox(width: 6),
                         _buildOrientationChip(
+                          context: context,
                           orientation: DusterOrientation.auto,
                           label: 'Auto Motion',
                           icon: Icons.autorenew,
@@ -237,22 +245,13 @@ class RealDusterToolbar extends StatelessWidget {
               ),
             ],
           ),
-                          fontWeight: FontWeight.w600,
-                          color: Colors.red.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
   Widget _buildDusterTypeCard({
+    required BuildContext context,
     required DusterType type,
     required String title,
     required String subtitle,
@@ -322,6 +321,7 @@ class RealDusterToolbar extends StatelessWidget {
   }
 
   Widget _buildOrientationChip({
+    required BuildContext context,
     required DusterOrientation orientation,
     required String label,
     required IconData icon,
@@ -367,29 +367,6 @@ class RealDusterToolbar extends StatelessWidget {
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 color: labelColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 13,
-              color: isSelected ? Colors.orange.shade800 : Colors.grey.shade700,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? Colors.orange.shade900 : Colors.grey.shade800,
               ),
             ),
           ],
