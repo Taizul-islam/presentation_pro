@@ -2003,7 +2003,7 @@ $stackString
   Widget _buildVerticalSelectionToolbar(
       Rect rect, double slideWidth, double slideHeight) {
     const double toolbarWidth = 45.0;
-    const double toolbarHeight = 225.0;
+    const double toolbarHeight = 135.0; // 3 action buttons (Delete, Color, More)
     const double expandedMenuWidth = 220.0;
     const double subMenuWidth = 240.0;
     const double horizontalPadding = 10.0;
@@ -2024,6 +2024,8 @@ $stackString
           .clamp(horizontalPadding, slideWidth - toolbarWidth);
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     double top = rect.top.clamp(verticalPadding,
         (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
 
@@ -2036,24 +2038,23 @@ $stackString
         child: Container(
           width: toolbarWidth,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
             borderRadius: BorderRadius.circular(22),
             boxShadow: const [
               BoxShadow(color: Colors.black12, blurRadius: 10)
             ],
-            border: Border.all(color: Colors.grey.shade300, width: 0.5),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+              width: 0.5,
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildContextAction(
-                  Icons.delete_outline, _deleteSelectedStrokes, Colors.red),
+                  Icons.delete_outline, _deleteSelectedStrokes, Colors.redAccent),
               _buildContextAction(
-                  Icons.palette_outlined, _showDrawingColorPicker, Colors.indigo),
-              _buildContextAction(
-                  Icons.layers_outlined, () {}, Colors.grey.shade700),
-              _buildContextAction(Icons.copy_outlined,
-                  _duplicateSelectedElements, Colors.grey.shade700),
+                  Icons.palette_outlined, _showDrawingColorPicker, Colors.indigoAccent),
               _buildContextAction(Icons.menu, () {
                 setState(() {
                   _isContextSubMenuVisible = !_isContextSubMenuVisible;
@@ -2062,7 +2063,7 @@ $stackString
                     _isColorSubMenuVisible = false;
                   }
                 });
-              }, Colors.grey.shade700),
+              }, isDark ? Colors.white : Colors.grey.shade700),
             ],
           ),
         ),
@@ -2072,10 +2073,11 @@ $stackString
 
   Widget _buildExpandedContextMenu(
       Rect rect, double slideWidth, double slideHeight) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     const double toolbarWidth = 45.0;
-    const double toolbarHeight = 225.0;
+    const double toolbarHeight = 135.0;
     const double expandedMenuWidth = 220.0;
-    const double maxMenuHeight = 350.0;
+    const double maxMenuHeight = 220.0;
     const double subMenuWidth = 240.0;
     const double horizontalPadding = 10.0;
     const double verticalPadding = 10.0;
@@ -2116,12 +2118,14 @@ $stackString
           width: expandedMenuWidth,
           constraints: BoxConstraints(maxHeight: maxMenuHeight),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: const [
               BoxShadow(color: Colors.black12, blurRadius: 15)
             ],
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            ),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -2161,18 +2165,6 @@ $stackString
                       hasSubmenu: true,
                       isActive: _isColorSubMenuVisible,
                     ),
-                    _buildExpandedMenuItem(
-                        Icons.add_to_photos_outlined,
-                        'Add to resource library', () {}),
-                    _buildExpandedMenuItem(
-                        Icons.link, 'Edit hyperlink', () {}),
-                    _buildExpandedMenuItem(Icons.compare_arrows, 'Mirror',
-                            () => _mirrorSelected(slideWidth, slideHeight)),
-                    _buildExpandedMenuItem(Icons.unfold_more, 'Flip',
-                            () => _flipSelected(slideWidth, slideHeight)),
-                    _buildExpandedMenuItem(
-                        Icons.copy_all, 'Copy', _duplicateSelectedElements),
-                    _buildExpandedMenuItem(Icons.content_cut, 'Shear', () {}),
                   ],
                 ),
               ),
@@ -2218,6 +2210,8 @@ $stackString
     double top = (toolbarTop + 45.0).clamp(
         verticalPadding, slideHeight - thicknessSubMenuHeight - verticalPadding);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Positioned(
       left: left,
       top: top,
@@ -2229,16 +2223,18 @@ $stackString
           height: thicknessSubMenuHeight,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: const [
               BoxShadow(color: Colors.black12, blurRadius: 10)
             ],
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            ),
           ),
           child: Row(
             children: [
-              Icon(Icons.line_weight, size: 16, color: Colors.grey.shade600),
+              Icon(Icons.line_weight, size: 16, color: isDark ? Colors.grey.shade300 : Colors.grey.shade600),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
@@ -2252,8 +2248,8 @@ $stackString
                     value: _currentSelectionThickness,
                     min: 1.0,
                     max: 30.0,
-                    activeColor: Colors.indigo,
-                    inactiveColor: Colors.grey.shade200,
+                    activeColor: Colors.indigoAccent,
+                    inactiveColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                     onChangeStart: (val) {
                       _isAdjustingThickness = true;
                       _saveToHistory();
@@ -2278,6 +2274,8 @@ $stackString
   Widget _buildExpandedMenuItem(
       IconData icon, String label, VoidCallback onTap,
       {bool hasSubmenu = false, bool isActive = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return InkWell(
       onTap: () {
         onTap();
@@ -2287,16 +2285,18 @@ $stackString
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: isActive
-              ? Colors.indigo.withOpacity(0.05)
+              ? Colors.indigo.withOpacity(0.12)
               : Colors.transparent,
           border: Border(
-              bottom: BorderSide(color: Colors.grey.shade100, width: 0.5)),
+              bottom: BorderSide(
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                  width: 0.5)),
         ),
         child: Row(
           children: [
             Icon(icon,
                 size: 18,
-                color: isActive ? Colors.indigo : Colors.grey.shade700),
+                color: isActive ? Colors.indigoAccent : (isDark ? Colors.grey.shade300 : Colors.grey.shade700)),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -2304,15 +2304,14 @@ $stackString
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: isActive ? Colors.indigo : Colors.grey.shade800,
+                  color: isDark ? Colors.white : Colors.grey.shade800,
                 ),
               ),
             ),
             if (hasSubmenu)
               Icon(Icons.arrow_right,
-                  size: 16,
-                  color:
-                  isActive ? Colors.indigo : Colors.grey.shade400),
+                  size: 18,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade400),
           ],
         ),
       ),
@@ -2597,6 +2596,8 @@ $stackString
       Colors.brown,
     ];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Positioned(
       left: left,
       top: top,
@@ -2608,12 +2609,14 @@ $stackString
           height: colorSubMenuHeight,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: const [
               BoxShadow(color: Colors.black12, blurRadius: 10)
             ],
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            ),
           ),
           child: Wrap(
             spacing: 8,
