@@ -113,32 +113,34 @@ class SlideThumbnail extends StatelessWidget {
     // Blank slide
     if (page.contentPath == null || page.contentPath!.isEmpty) {
       if (hasContent) return Container(color: bgColor);
-      if (hasContent) return Container(color: bgColor);
 
       return Container(
         color: bgColor,
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.gesture,
-                size: 24,
-                color: bgColor.computeLuminance() > 0.5
-                    ? Colors.grey.shade300
-                    : Colors.white.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Blank',
-                style: TextStyle(
-                  fontSize: 8,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.gesture,
+                  size: 24,
                   color: bgColor.computeLuminance() > 0.5
-                      ? Colors.grey.shade400
-                      : Colors.white.withValues(alpha: 0.7),
+                      ? Colors.grey.shade300
+                      : Colors.white.withValues(alpha: 0.5),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  'Blank',
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: bgColor.computeLuminance() > 0.5
+                        ? Colors.grey.shade400
+                        : Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

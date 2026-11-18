@@ -889,6 +889,7 @@ $stackString
               AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 width: _isSidebarCollapsed ? 0 : 180,
+                clipBehavior: Clip.hardEdge,
                 decoration: BoxDecoration(
                   boxShadow: _isSidebarCollapsed
                       ? null
