@@ -52,10 +52,10 @@ class HandwritingControlPanel extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.1),
+                  color: Colors.teal.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.spellcheck, color: Colors.teal, size: 18),
+                child: const Icon(Icons.spellcheck, color: Colors.tealAccent, size: 18),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -64,17 +64,19 @@ class HandwritingControlPanel extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
+                    color: isDark ? Colors.white : Colors.grey.shade800,
                   ),
                 ),
               ),
               // Language Selector Chips
               _buildLangChip(
+                context: context,
                 lang: HandwritingLanguage.english,
                 label: 'English (EN)',
               ),
               const SizedBox(width: 6),
               _buildLangChip(
+                context: context,
                 lang: HandwritingLanguage.bangla,
                 label: 'বাংলা (BN)',
               ),
@@ -89,16 +91,20 @@ class HandwritingControlPanel extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: isDark ? const Color(0xFF252536) : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+              ),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.gesture,
                   size: 16,
-                  color: recognizedText.isNotEmpty ? Colors.teal.shade700 : Colors.grey,
+                  color: recognizedText.isNotEmpty
+                      ? Colors.tealAccent
+                      : (isDark ? Colors.grey.shade400 : Colors.grey),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -113,14 +119,14 @@ class HandwritingControlPanel extends StatelessWidget {
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: recognizedText.isNotEmpty
-                                ? Colors.teal.shade900
+                                ? (isDark ? Colors.tealAccent : Colors.teal.shade900)
                                 : Colors.grey.shade500,
                           )
                         : GoogleFonts.poppins(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: recognizedText.isNotEmpty
-                                ? Colors.teal.shade900
+                                ? (isDark ? Colors.tealAccent : Colors.teal.shade900)
                                 : Colors.grey.shade500,
                           ),
                     maxLines: 1,
@@ -141,7 +147,7 @@ class HandwritingControlPanel extends StatelessWidget {
                 label: const Text('Clear Ink'),
                 onPressed: onClearInk,
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey.shade700,
+                  foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                   visualDensity: VisualDensity.compact,
                 ),
               ),
@@ -174,10 +180,22 @@ class HandwritingControlPanel extends StatelessWidget {
   }
 
   Widget _buildLangChip({
+    required BuildContext context,
     required HandwritingLanguage lang,
     required String label,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSelected = selectedLanguage == lang;
+
+    final chipBg = isSelected
+        ? (isDark ? Colors.teal.shade900.withOpacity(0.35) : Colors.teal.shade50)
+        : (isDark ? const Color(0xFF252536) : Colors.grey.shade100);
+    final borderColor = isSelected
+        ? Colors.teal.shade700
+        : (isDark ? Colors.grey.shade800 : Colors.grey.shade300);
+    final labelColor = isSelected
+        ? (isDark ? Colors.tealAccent : Colors.teal.shade900)
+        : (isDark ? Colors.grey.shade300 : Colors.grey.shade700);
 
     return InkWell(
       onTap: () => onLanguageChanged(lang),
@@ -186,10 +204,10 @@ class HandwritingControlPanel extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.teal.shade50 : Colors.grey.shade100,
+          color: chipBg,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? Colors.teal.shade700 : Colors.grey.shade300,
+            color: borderColor,
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -198,7 +216,7 @@ class HandwritingControlPanel extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontSize: 10,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.teal.shade900 : Colors.grey.shade700,
+            color: labelColor,
           ),
         ),
       ),

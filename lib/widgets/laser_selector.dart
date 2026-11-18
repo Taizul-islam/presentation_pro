@@ -85,14 +85,14 @@ class LaserPointerToolbar extends StatelessWidget {
           if (!isSpotlight) ...[
             Row(
               children: [
-                Icon(Icons.palette_outlined, size: 15, color: Colors.grey.shade700),
+                Icon(Icons.palette_outlined, size: 15, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
                 const SizedBox(width: 6),
                 Text(
                   'Laser Glow Color:',
                   style: GoogleFonts.poppins(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -109,7 +109,7 @@ class LaserPointerToolbar extends StatelessWidget {
                           color: color,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isSelected ? Colors.indigo : Colors.grey.shade300,
+                            color: isSelected ? Colors.indigoAccent : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                             width: isSelected ? 2.5 : 1.0,
                           ),
                           boxShadow: isSelected
@@ -125,14 +125,14 @@ class LaserPointerToolbar extends StatelessWidget {
           ] else ...[
             Row(
               children: [
-                Icon(Icons.center_focus_strong, size: 16, color: Colors.grey.shade700),
+                Icon(Icons.center_focus_strong, size: 16, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
                 const SizedBox(width: 6),
                 Text(
                   'Spotlight Size',
                   style: GoogleFonts.poppins(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -148,7 +148,7 @@ class LaserPointerToolbar extends StatelessWidget {
                       min: 40.0,
                       max: 200.0,
                       activeColor: Colors.amber.shade800,
-                      inactiveColor: Colors.grey.shade200,
+                      inactiveColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                       onChanged: onRadiusChanged,
                     ),
                   ),
@@ -158,15 +158,18 @@ class LaserPointerToolbar extends StatelessWidget {
                   alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: isDark ? const Color(0xFF252536) : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isDark ? Colors.grey.shade800 : Colors.transparent,
+                    ),
                   ),
                   child: Text(
                     '${spotlightRadius.toInt()}',
                     style: GoogleFonts.poppins(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Colors.amber.shade900,
+                      color: Colors.amber.shade700,
                     ),
                   ),
                 ),
@@ -185,7 +188,21 @@ class LaserPointerToolbar extends StatelessWidget {
     required IconData icon,
     required Color activeColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSelected = selectedMode == mode;
+
+    final cardBg = isSelected
+        ? activeColor.withOpacity(isDark ? 0.25 : 0.08)
+        : (isDark ? const Color(0xFF252536) : Colors.grey.shade50);
+    final borderColor = isSelected
+        ? activeColor
+        : (isDark ? Colors.grey.shade800 : Colors.grey.shade300);
+    final titleColor = isSelected
+        ? activeColor
+        : (isDark ? Colors.grey.shade300 : Colors.grey.shade800);
+    final iconColor = isSelected
+        ? activeColor
+        : (isDark ? Colors.grey.shade400 : Colors.grey.shade600);
 
     return InkWell(
       onTap: () => onModeChanged(mode),
@@ -194,10 +211,10 @@ class LaserPointerToolbar extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? activeColor.withOpacity(0.08) : Colors.grey.shade50,
+          color: cardBg,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? activeColor : Colors.grey.shade300,
+            color: borderColor,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -206,7 +223,7 @@ class LaserPointerToolbar extends StatelessWidget {
             Icon(
               icon,
               size: 22,
-              color: isSelected ? activeColor : Colors.grey.shade600,
+              color: iconColor,
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -219,14 +236,14 @@ class LaserPointerToolbar extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 11,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? activeColor : Colors.grey.shade800,
+                      color: titleColor,
                     ),
                   ),
                   Text(
                     subtitle,
                     style: GoogleFonts.poppins(
                       fontSize: 8,
-                      color: Colors.grey.shade500,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

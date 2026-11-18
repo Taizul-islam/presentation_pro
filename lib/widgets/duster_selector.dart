@@ -93,14 +93,14 @@ class RealDusterToolbar extends StatelessWidget {
             // Row 2: Ergonomic Grip Angle Selector
             Row(
               children: [
-                Icon(Icons.pan_tool_outlined, size: 15, color: Colors.grey.shade700),
+                Icon(Icons.pan_tool_outlined, size: 15, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
                 const SizedBox(width: 6),
                 Text(
                   'Grip Angle:',
                   style: GoogleFonts.poppins(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -153,14 +153,14 @@ class RealDusterToolbar extends StatelessWidget {
           // Row 3: Size Slider & Wipe Button
           Row(
             children: [
-              Icon(Icons.aspect_ratio, size: 16, color: Colors.grey.shade600),
+              Icon(Icons.aspect_ratio, size: 16, color: isDark ? Colors.grey.shade300 : Colors.grey.shade600),
               const SizedBox(width: 6),
               Text(
                 'Size',
                 style: GoogleFonts.poppins(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
+                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                 ),
               ),
               const SizedBox(width: 8),
@@ -176,7 +176,7 @@ class RealDusterToolbar extends StatelessWidget {
                     min: 15.0,
                     max: 150.0,
                     activeColor: Colors.orange.shade700,
-                    inactiveColor: Colors.grey.shade200,
+                    inactiveColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                     onChanged: onDusterSizeChanged,
                   ),
                 ),
@@ -186,15 +186,18 @@ class RealDusterToolbar extends StatelessWidget {
                 alignment: Alignment.center,
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: isDark ? const Color(0xFF252536) : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: isDark ? Colors.grey.shade800 : Colors.transparent,
+                  ),
                 ),
                 child: Text(
                   '${dusterSize.toInt()}',
                   style: GoogleFonts.poppins(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: Colors.orange.shade800,
+                    color: Colors.orange.shade700,
                   ),
                 ),
               ),
@@ -206,18 +209,34 @@ class RealDusterToolbar extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: isDark ? Colors.red.shade900.withOpacity(0.35) : Colors.red.shade50,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade200),
+                    border: Border.all(
+                      color: isDark ? Colors.red.shade800 : Colors.red.shade200,
+                    ),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.delete_sweep_outlined, size: 16, color: Colors.red.shade700),
+                      Icon(
+                        Icons.delete_sweep_outlined,
+                        size: 16,
+                        color: isDark ? Colors.red.shade300 : Colors.red.shade700,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Wipe Slide',
                         style: GoogleFonts.poppins(
                           fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.red.shade300 : Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
                           fontWeight: FontWeight.w600,
                           color: Colors.red.shade700,
                         ),
@@ -240,7 +259,21 @@ class RealDusterToolbar extends StatelessWidget {
     required IconData icon,
     required Color activeColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSelected = selectedDusterType == type;
+
+    final cardBg = isSelected
+        ? activeColor.withOpacity(isDark ? 0.25 : 0.08)
+        : (isDark ? const Color(0xFF252536) : Colors.grey.shade50);
+    final borderColor = isSelected
+        ? activeColor
+        : (isDark ? Colors.grey.shade800 : Colors.grey.shade300);
+    final titleColor = isSelected
+        ? activeColor
+        : (isDark ? Colors.grey.shade300 : Colors.grey.shade800);
+    final iconColor = isSelected
+        ? activeColor
+        : (isDark ? Colors.grey.shade400 : Colors.grey.shade600);
 
     return InkWell(
       onTap: () => onDusterTypeChanged(type),
@@ -249,10 +282,10 @@ class RealDusterToolbar extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? activeColor.withOpacity(0.08) : Colors.grey.shade50,
+          color: cardBg,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? activeColor : Colors.grey.shade300,
+            color: borderColor,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -262,7 +295,7 @@ class RealDusterToolbar extends StatelessWidget {
             Icon(
               icon,
               size: 20,
-              color: isSelected ? activeColor : Colors.grey.shade600,
+              color: iconColor,
             ),
             const SizedBox(height: 4),
             Text(
@@ -270,14 +303,14 @@ class RealDusterToolbar extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? activeColor : Colors.grey.shade800,
+                color: titleColor,
               ),
             ),
             Text(
               subtitle,
               style: GoogleFonts.poppins(
                 fontSize: 8,
-                color: Colors.grey.shade500,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -293,7 +326,21 @@ class RealDusterToolbar extends StatelessWidget {
     required String label,
     required IconData icon,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSelected = selectedOrientation == orientation;
+
+    final chipBg = isSelected
+        ? (isDark ? Colors.orange.shade900.withOpacity(0.35) : Colors.orange.shade50)
+        : (isDark ? const Color(0xFF252536) : Colors.grey.shade100);
+    final borderColor = isSelected
+        ? Colors.orange.shade700
+        : (isDark ? Colors.grey.shade800 : Colors.grey.shade300);
+    final labelColor = isSelected
+        ? Colors.orange.shade700
+        : (isDark ? Colors.grey.shade300 : Colors.grey.shade800);
+    final iconColor = isSelected
+        ? Colors.orange.shade700
+        : (isDark ? Colors.grey.shade400 : Colors.grey.shade700);
 
     return InkWell(
       onTap: () => onOrientationChanged(orientation),
@@ -302,12 +349,31 @@ class RealDusterToolbar extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.orange.shade50 : Colors.grey.shade100,
+          color: chipBg,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? Colors.orange.shade700 : Colors.grey.shade300,
+            color: borderColor,
             width: isSelected ? 1.5 : 1.0,
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: iconColor),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: labelColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
