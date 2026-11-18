@@ -1363,9 +1363,6 @@ $stackString
                 if (_isContextSubMenuVisible && _isThicknessSubMenuVisible)
                   _buildThicknessSubMenu(
                       _activeSelectionRect!, slideWidth, slideHeight),
-                if (_isContextSubMenuVisible && _isColorSubMenuVisible)
-                  _buildColorSubMenu(
-                      _activeSelectionRect!, slideWidth, slideHeight),
               ],
               if (isCurrentPage &&
                   _activeTextIndex != null &&
@@ -2148,8 +2145,6 @@ $stackString
                           () => setState(() {
                         _isThicknessSubMenuVisible =
                         !_isThicknessSubMenuVisible;
-                        if (_isThicknessSubMenuVisible)
-                          _isColorSubMenuVisible = false;
                       }),
                       hasSubmenu: true,
                       isActive: _isThicknessSubMenuVisible,
@@ -2157,13 +2152,27 @@ $stackString
                     _buildExpandedMenuItem(
                       Icons.format_color_fill,
                       'Fill color',
-                          () => setState(() {
-                        _isColorSubMenuVisible = !_isColorSubMenuVisible;
-                        if (_isColorSubMenuVisible)
+                      () async {
+                        setState(() {
+                          _isContextSubMenuVisible = false;
                           _isThicknessSubMenuVisible = false;
-                      }),
-                      hasSubmenu: true,
-                      isActive: _isColorSubMenuVisible,
+                        });
+                        Color initial = _selectedColor;
+                        if (_activeSelectedIndices.isNotEmpty) {
+                          final page = _pages[_currentPageIndex];
+                          initial = page.strokes[_activeSelectedIndices.first].color;
+                        }
+                        final newColor = await SmartColorPickerDialog.show(
+                          context: context,
+                          initialColor: initial,
+                          title: 'Stroke Fill Color',
+                          icon: Icons.format_color_fill,
+                        );
+                        if (newColor != null) {
+                          _updateSelectedStrokesColor(newColor);
+                        }
+                      },
+                      hasSubmenu: false,
                     ),
                   ],
                 ),
