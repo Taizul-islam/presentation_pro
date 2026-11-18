@@ -72,8 +72,14 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.grey.shade800;
+    final labelColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
+
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: dialogBg,
       elevation: 16,
       shadowColor: Colors.black26,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -91,10 +97,10 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: Colors.indigo.withOpacity(0.1),
+                    color: Colors.indigo.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(widget.icon, color: Colors.indigo, size: 20),
+                  child: Icon(widget.icon, color: Colors.indigoAccent, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -103,7 +109,7 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade800,
+                      color: textColor,
                     ),
                   ),
                 ),
@@ -125,7 +131,7 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
               decoration: BoxDecoration(
                 color: _selectedColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300, width: 1),
+                border: Border.all(color: borderColor, width: 1),
                 boxShadow: const [
                   BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
                 ],
@@ -183,7 +189,7 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
+                color: labelColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -202,13 +208,13 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? Colors.indigo : Colors.grey.shade300,
+                        color: isSelected ? Colors.indigoAccent : borderColor,
                         width: isSelected ? 3.0 : 1.0,
                       ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: Colors.indigo.withOpacity(0.3),
+                                color: Colors.indigo.withOpacity(0.4),
                                 blurRadius: 6,
                                 spreadRadius: 1,
                               )
@@ -240,7 +246,7 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
+                color: labelColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -253,7 +259,7 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
+                color: labelColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -267,7 +273,7 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade700,
+                    foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),

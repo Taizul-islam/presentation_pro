@@ -16,21 +16,36 @@ class TextFormattingDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
       elevation: 8,
       borderRadius: BorderRadius.circular(12),
-      color: Colors.white,
+      color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
       child: Container(
         width: 300,
         padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? Colors.grey.shade800 : Colors.transparent,
+            width: 1,
+          ),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                const Icon(Icons.title, size: 20, color: Colors.indigo),
+                const Icon(Icons.title, size: 20, color: Colors.indigoAccent),
                 const SizedBox(width: 8),
-                Text('Text Styles', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                Text(
+                  'Text Styles',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.grey.shade800,
+                  ),
+                ),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.close, size: 18),

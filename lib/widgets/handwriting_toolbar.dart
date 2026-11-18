@@ -20,14 +20,19 @@ class HandwritingControlPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isBangla = selectedLanguage == HandwritingLanguage.bangla;
 
     return Container(
       width: 460,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.transparent,
+          width: 1,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Colors.black12,
