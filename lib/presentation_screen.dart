@@ -1058,35 +1058,46 @@ $stackString
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? Colors.grey.shade800 : Colors.transparent,
+                      width: 1,
+                    ),
                     boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.remove, size: 18),
+                        icon: Icon(Icons.remove,
+                            size: 18,
+                            color: isDark ? Colors.white : Colors.grey.shade700),
                         onPressed: _zoomOut,
                         tooltip: 'Zoom Out',
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: isDark ? const Color(0xFF252536) : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isDark ? Colors.grey.shade800 : Colors.transparent,
+                          ),
                         ),
                         child: Text(
                           '${(_currentZoomScale * 100).toInt()}%',
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Colors.indigo,
+                            color: isDark ? Colors.indigoAccent : Colors.indigo,
                           ),
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.add, size: 18),
+                        icon: Icon(Icons.add,
+                            size: 18,
+                            color: isDark ? Colors.white : Colors.grey.shade700),
                         onPressed: _zoomIn,
                         tooltip: 'Zoom In',
                       ),
@@ -1102,7 +1113,8 @@ $stackString
                         ),
                         onPressed: _resetZoom,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo,
+                          backgroundColor:
+                              isDark ? Colors.indigoAccent : Colors.indigo,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           shape: RoundedRectangleBorder(
