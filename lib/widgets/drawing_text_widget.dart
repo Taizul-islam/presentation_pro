@@ -144,6 +144,16 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
 
               // Professional Figma-Style Handles (when selected and unlocked)
               if (widget.isSelected && !widget.element.isLocked) ...[
+                // Top Center Drag & Move Handle
+                Positioned(
+                  top: padding - 10,
+                  left: padding,
+                  right: padding,
+                  child: Center(
+                    child: _buildMoveHandle(),
+                  ),
+                ),
+
                 // Left Midpoint Width Handle (Circle)
                 Positioned(
                   left: padding - 10,
@@ -219,6 +229,47 @@ class _DrawingTextWidgetState extends State<DrawingTextWidget> {
                 ),
               ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoveHandle() {
+    return MouseRegion(
+      cursor: SystemMouseCursors.move,
+      child: Tooltip(
+        message: 'Drag & Move Text Box',
+        child: GestureDetector(
+          onPanStart: (details) {
+            widget.onInteractionStart?.call();
+          },
+          onPanUpdate: (details) {
+            if (!widget.element.isLocked) {
+              widget.onPositionChanged(details.delta);
+            }
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 24,
+            height: 20,
+            alignment: Alignment.center,
+            color: Colors.transparent,
+            child: Container(
+              width: 18,
+              height: 10,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFF18A0FB), width: 1.5),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
+              ),
+              child: const Icon(
+                Icons.drag_handle,
+                size: 8,
+                color: Color(0xFF18A0FB),
+              ),
+            ),
           ),
         ),
       ),
