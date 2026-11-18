@@ -333,6 +333,28 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       }
     }
 
+    // Check for direct 1-Tap Stroke Selection
+    if (_lastCanvasSize != null) {
+      final size = _lastCanvasSize!;
+      for (int i = widget.strokes.length - 1; i >= 0; i--) {
+        final stroke = widget.strokes[i];
+        final scaledStroke = _scaleStrokeToPixels(stroke, size);
+        if (_isPointNearStroke(position, scaledStroke, 18.0)) {
+          setState(() {
+            _selectedIndices = [i];
+            _isMoving = true;
+            _dragStart = position;
+            _currentDragOffset = Offset.zero;
+            _activeHandleIndex = null;
+            _isRotating = false;
+            _refreshSelectionRect();
+          });
+          _notifySelectionChanged();
+          return;
+        }
+      }
+    }
+
     setState(() {
       _selectionRect = Rect.fromPoints(position, position);
       _selectedIndices = [];
@@ -494,6 +516,30 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       }
     }
     _selectionRect = newRect;
+  }
+
+  bool _isPointNearStroke(Offset point, DrawingStroke stroke, double maxDistance) {
+    if (stroke.points.isEmpty) return false;
+    for (int i = 0; i < stroke.points.length - 1; i++) {
+      final p1 = stroke.points[i];
+      final p2 = stroke.points[i + 1];
+      if (_distanceToSegment(point, p1, p2) <= maxDistance) {
+        return true;
+      }
+    }
+    if (stroke.points.length == 1) {
+      return (point - stroke.points.first).distance <= maxDistance;
+    }
+    return false;
+  }
+
+  double _distanceToSegment(Offset p, Offset v, Offset w) {
+    final l2 = (v - w).distanceSquared;
+    if (l2 == 0) return (p - v).distance;
+    final t = (((p.dx - v.dx) * (w.dx - v.dx) + (p.dy - v.dy) * (w.dy - v.dy)) / l2)
+        .clamp(0.0, 1.0);
+    final projection = Offset(v.dx + t * (w.dx - v.dx), v.dy + t * (w.dy - v.dy));
+    return (p - projection).distance;
   }
 
   void _updateSelectedIndices() {
@@ -791,19 +837,6 @@ class DrawingPainter extends CustomPainter {
     iconPainter.paint(canvas, rotateCenter - Offset(iconPainter.width/2, iconPainter.height/2));
   }
 
-  DrawingStroke _scaleStrokeToPixels(DrawingStroke stroke, Size size) {
-    // Scale width relative to a 1920px standard for consistent boldness
-    final double widthScale = size.width / 1920.0;
-    return DrawingStroke(
-      points: stroke.points.map((p) => Offset(p.dx * size.width, p.dy * size.height)).toList(),
-      color: stroke.color,
-      width: stroke.width * widthScale,
-      tool: stroke.tool,
-      dusterType: stroke.dusterType,
-      isLocked: stroke.isLocked,
-    );
-  }
-
   void _drawDashedRect(Canvas canvas, Rect rect, Paint paint, double dashWidth, double dashSpace) {
     void drawDashedLine(Offset p1, Offset p2) {
       var distance = (p2 - p1).distance;
@@ -1049,4 +1082,17 @@ class DrawingPainter extends CustomPainter {
   bool shouldRepaint(covariant DrawingPainter oldDelegate) {
     return true;
   }
+}
+
+DrawingStroke _scaleStrokeToPixels(DrawingStroke stroke, Size size) {
+  // Scale width relative to a 1920px standard for consistent boldness
+  final double widthScale = size.width / 1920.0;
+  return DrawingStroke(
+    points: stroke.points.map((p) => Offset(p.dx * size.width, p.dy * size.height)).toList(),
+    color: stroke.color,
+    width: stroke.width * widthScale,
+    tool: stroke.tool,
+    dusterType: stroke.dusterType,
+    isLocked: stroke.isLocked,
+  );
 }
