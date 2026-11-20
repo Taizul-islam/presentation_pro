@@ -334,26 +334,24 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       }
     }
 
-    // Check for 1-Tap Re-Selection on ALL previously selected/moved drawings
-    if (_previouslyMovedIndices.isNotEmpty && _lastCanvasSize != null) {
+    // 1-Tap Direct Selection on any Stroke or Shape (Top-most to Bottom-most)
+    if (_lastCanvasSize != null) {
       final size = _lastCanvasSize!;
-      for (final i in _previouslyMovedIndices.toList().reversed) {
-        if (i < widget.strokes.length) {
-          final stroke = widget.strokes[i];
-          final scaledStroke = _scaleStrokeToPixels(stroke, size);
-          if (_isPointNearStroke(position, scaledStroke, 22.0)) {
-            setState(() {
-              _selectedIndices = [i];
-              _isMoving = true;
-              _dragStart = position;
-              _currentDragOffset = Offset.zero;
-              _activeHandleIndex = null;
-              _isRotating = false;
-              _refreshSelectionRect();
-            });
-            _notifySelectionChanged();
-            return;
-          }
+      for (int i = widget.strokes.length - 1; i >= 0; i--) {
+        final stroke = widget.strokes[i];
+        final scaledStroke = _scaleStrokeToPixels(stroke, size);
+        if (_isPointNearStroke(position, scaledStroke, 18.0)) {
+          setState(() {
+            _selectedIndices = [i];
+            _isMoving = true;
+            _dragStart = position;
+            _currentDragOffset = Offset.zero;
+            _activeHandleIndex = null;
+            _isRotating = false;
+            _refreshSelectionRect();
+          });
+          _notifySelectionChanged();
+          return;
         }
       }
     }
@@ -526,6 +524,15 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
 
   bool _isPointNearStroke(Offset point, DrawingStroke stroke, double maxDistance) {
     if (stroke.points.isEmpty) return false;
+
+    // Vector Shapes Bounding Box & Border Hit Test
+    if (stroke.tool == DrawingTool.shape || stroke.shapeType != null) {
+      if (stroke.points.length >= 2) {
+        final shapeRect = Rect.fromPoints(stroke.points.first, stroke.points.last).inflate(maxDistance);
+        if (shapeRect.contains(point)) return true;
+      }
+    }
+
     for (int i = 0; i < stroke.points.length - 1; i++) {
       final p1 = stroke.points[i];
       final p2 = stroke.points[i + 1];
