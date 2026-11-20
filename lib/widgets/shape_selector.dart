@@ -58,7 +58,7 @@ class ShapesToolbar extends StatelessWidget {
           Row(
             children: [
               Icon(
-                Icons.shapes_outlined,
+                Icons.category,
                 size: 14,
                 color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
               ),
