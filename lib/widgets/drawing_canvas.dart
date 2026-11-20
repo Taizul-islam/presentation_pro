@@ -203,10 +203,14 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               _addLaserPoint(pos);
               if (widget.selectedTool == DrawingTool.selector) {
                 _handleSelectionStart(pos);
+              } else if (widget.selectedTool == DrawingTool.shape &&
+                  _tryHandleExistingShapeInteraction(pos)) {
+                return;
               } else if (widget.selectedTool == DrawingTool.text) {
                 // Pass normalized position to parent
                 widget.onTextCreated?.call(Offset(pos.dx / canvasSize.width, pos.dy / canvasSize.height));
               } else {
+                _clearSelection();
                 _isDrawing = true;
                 widget.onHoverUpdate(pos);
                 // Pass normalized position to parent
@@ -220,7 +224,8 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               _updateDusterAngle(pos);
               _addLaserPoint(pos);
               widget.onHoverUpdate(pos);
-              if (widget.selectedTool == DrawingTool.selector) {
+              if (widget.selectedTool == DrawingTool.selector ||
+                  (widget.selectedTool == DrawingTool.shape && !_isDrawing)) {
                 _handleSelectionUpdate(pos);
               } else if (_isDrawing) {
                 // Pass normalized position to parent
@@ -231,7 +236,8 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               if (widget.selectedTool == DrawingTool.hand) return;
               _lastPointerPos = null;
               widget.onHandTouchDetected?.call(false, 0.0);
-              if (widget.selectedTool == DrawingTool.selector) {
+              if (widget.selectedTool == DrawingTool.selector ||
+                  (widget.selectedTool == DrawingTool.shape && !_isDrawing)) {
                 _handleSelectionEnd();
               } else if (_isDrawing) {
                 _isDrawing = false;
@@ -283,6 +289,75 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
         );
       },
     );
+  }
+
+  bool _tryHandleExistingShapeInteraction(Offset pos) {
+    if (_selectionRect != null) {
+      final handles = [
+        _selectionRect!.topLeft,
+        _selectionRect!.topRight,
+        _selectionRect!.bottomLeft,
+        _selectionRect!.bottomRight,
+      ];
+      for (int i = 0; i < handles.length; i++) {
+        if ((pos - handles[i]).distance < 20) {
+          setState(() {
+            _activeHandleIndex = i;
+            if (i == 0) _scalePivot = _selectionRect!.bottomRight;
+            if (i == 1) _scalePivot = _selectionRect!.bottomLeft;
+            if (i == 2) _scalePivot = _selectionRect!.topRight;
+            if (i == 3) _scalePivot = _selectionRect!.topLeft;
+            _dragStart = pos;
+            _scaleX = 1.0;
+            _scaleY = 1.0;
+          });
+          return true;
+        }
+      }
+
+      final rotateHandle = _selectionRect!.topCenter + const Offset(0, -35);
+      if ((pos - rotateHandle).distance < 20) {
+        setState(() {
+          _isRotating = true;
+          _rotationCenter = _selectionRect!.center;
+          _rotationAngle = 0.0;
+          _dragStart = pos;
+        });
+        return true;
+      }
+
+      if (_selectionRect!.contains(pos)) {
+        setState(() {
+          _isMoving = true;
+          _dragStart = pos;
+          _currentDragOffset = Offset.zero;
+        });
+        return true;
+      }
+    }
+
+    if (_lastCanvasSize != null) {
+      final size = _lastCanvasSize!;
+      for (int i = widget.strokes.length - 1; i >= 0; i--) {
+        final stroke = widget.strokes[i];
+        final scaledStroke = _scaleStrokeToPixels(stroke, size);
+        if (_isPointNearStroke(pos, scaledStroke, 18.0)) {
+          setState(() {
+            _selectedIndices = [i];
+            _isMoving = true;
+            _dragStart = pos;
+            _currentDragOffset = Offset.zero;
+            _activeHandleIndex = null;
+            _isRotating = false;
+            _refreshSelectionRect();
+          });
+          _notifySelectionChanged();
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   void _handleSelectionStart(Offset position) {

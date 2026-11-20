@@ -263,7 +263,6 @@ class _PresentationScreenState extends State<PresentationScreen>
         if (wasShape) {
           _activeSelectedIndices = [updatedStrokes.length - 1];
           _activeTextIndex = null;
-          _selectedTool = DrawingTool.selector;
         }
 
         if (_selectedTool == DrawingTool.handwriting) {
