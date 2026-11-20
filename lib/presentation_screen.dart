@@ -1608,8 +1608,10 @@ $stackString
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildToolbarIcon(Icons.near_me, DrawingTool.selector,
-                _selectedTool == DrawingTool.selector),
+            _buildToolbarIcon(
+                Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
+            _buildToolbarIcon(Icons.brush, DrawingTool.highlighter,
+                _selectedTool == DrawingTool.highlighter),
             IconButton(
               icon: Icon(Icons.format_color_fill, size: 22, color: iconColor),
               onPressed: _showBackgroundColorPicker,
@@ -1619,12 +1621,10 @@ $stackString
                 _selectedTool == DrawingTool.eraser),
             _buildToolbarIcon(Icons.title, DrawingTool.text,
                 _selectedTool == DrawingTool.text),
+            _buildToolbarIcon(Icons.near_me, DrawingTool.selector,
+                _selectedTool == DrawingTool.selector),
             _buildToolbarIcon(Icons.pan_tool_outlined, DrawingTool.hand,
                 _selectedTool == DrawingTool.hand),
-            _buildToolbarIcon(
-                Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
-            _buildToolbarIcon(Icons.brush, DrawingTool.highlighter,
-                _selectedTool == DrawingTool.highlighter),
             _buildToolbarIcon(Icons.flare, DrawingTool.laserPointer,
                 _selectedTool == DrawingTool.laserPointer),
             VerticalDivider(
