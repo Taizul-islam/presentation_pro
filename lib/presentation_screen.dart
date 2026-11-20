@@ -53,7 +53,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   Color _selectedColor = Colors.red;
   double _strokeWidth = 4.0;
   double _eraserWidth = 30.0;
-  DrawingTool _selectedTool = DrawingTool.selector;
+  DrawingTool _selectedTool = DrawingTool.pen;
   DusterType _selectedDusterType = DusterType.feltBlock;
   DusterOrientation _selectedDusterOrientation = DusterOrientation.rightHand;
   HandwritingLanguage _selectedHandwritingLang = HandwritingLanguage.english;
