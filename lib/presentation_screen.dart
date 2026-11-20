@@ -1361,15 +1361,18 @@ $stackString
                   _activeTextIndex! >= 0 &&
                   _activeTextIndex! < page.texts.length)
                 Positioned(
-                  right: 20,
-                  top: 20,
-                  child: TextFormattingDialog(
-                    element: page.texts[_activeTextIndex!],
-                    onChanged: (updated) =>
-                        _updateTextElement(_activeTextIndex!, updated),
-                    onClose: () =>
-                        setState(() => _isTextFormattingVisible = false),
-                    onDelete: _deleteSelectedText,
+                  left: 0,
+                  right: 0,
+                  top: 16,
+                  child: Center(
+                    child: TextFormattingDialog(
+                      element: page.texts[_activeTextIndex!],
+                      onChanged: (updated) =>
+                          _updateTextElement(_activeTextIndex!, updated),
+                      onClose: () =>
+                          setState(() => _isTextFormattingVisible = false),
+                      onDelete: _deleteSelectedText,
+                    ),
                   ),
                 ),
             ],
