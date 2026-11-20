@@ -904,6 +904,11 @@ class DrawingPainter extends CustomPainter {
   void _drawStroke(Canvas canvas, DrawingStroke stroke) {
     if (stroke.points.length < 2) return;
 
+    if (stroke.tool == DrawingTool.shape || stroke.shapeType != null) {
+      _drawShape(canvas, stroke);
+      return;
+    }
+
     if (stroke.tool == DrawingTool.eraser &&
         (stroke.dusterType == DusterType.feltBlock || stroke.dusterType == DusterType.sponge)) {
       _drawDirectionalBlockEraser(canvas, stroke);
@@ -951,6 +956,161 @@ class DrawingPainter extends CustomPainter {
     }
 
     canvas.drawPath(path, paint);
+  }
+
+  void _drawShape(Canvas canvas, DrawingStroke stroke) {
+    if (stroke.points.length < 2) return;
+    final p1 = stroke.points.first;
+    final p2 = stroke.points.last;
+    final rect = Rect.fromPoints(p1, p2);
+
+    final strokePaint = Paint()
+      ..color = stroke.color
+      ..strokeWidth = stroke.width
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    Paint? fillPaint;
+    if (stroke.fillColor != null && stroke.fillColor != Colors.transparent) {
+      fillPaint = Paint()
+        ..color = stroke.fillColor!
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true;
+    }
+
+    final shape = stroke.shapeType ?? ShapeType.rectangle;
+
+    switch (shape) {
+      case ShapeType.rectangle:
+        if (fillPaint != null) canvas.drawRect(rect, fillPaint);
+        canvas.drawRect(rect, strokePaint);
+        break;
+
+      case ShapeType.circle:
+        if (fillPaint != null) canvas.drawOval(rect, fillPaint);
+        canvas.drawOval(rect, strokePaint);
+        break;
+
+      case ShapeType.triangle:
+        final path = Path()
+          ..moveTo(rect.center.dx, rect.top)
+          ..lineTo(rect.right, rect.bottom)
+          ..lineTo(rect.left, rect.bottom)
+          ..close();
+        if (fillPaint != null) canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, strokePaint);
+        break;
+
+      case ShapeType.diamond:
+        final path = Path()
+          ..moveTo(rect.center.dx, rect.top)
+          ..lineTo(rect.right, rect.center.dy)
+          ..lineTo(rect.center.dx, rect.bottom)
+          ..lineTo(rect.left, rect.center.dy)
+          ..close();
+        if (fillPaint != null) canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, strokePaint);
+        break;
+
+      case ShapeType.star:
+        final path = _createStarPath(rect);
+        if (fillPaint != null) canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, strokePaint);
+        break;
+
+      case ShapeType.line:
+        canvas.drawLine(p1, p2, strokePaint);
+        break;
+
+      case ShapeType.arrow:
+        _drawArrowLine(canvas, p1, p2, strokePaint);
+        break;
+
+      case ShapeType.coordinateAxes:
+        _drawCoordinateAxes(canvas, rect, strokePaint);
+        break;
+
+      case ShapeType.cube:
+        _draw3DCube(canvas, rect, strokePaint, fillPaint);
+        break;
+    }
+  }
+
+  Path _createStarPath(Rect rect) {
+    final path = Path();
+    final center = rect.center;
+    final rx = rect.width.abs() / 2;
+    final ry = rect.height.abs() / 2;
+    const points = 5;
+    final innerRx = rx * 0.4;
+    final innerRy = ry * 0.4;
+
+    for (int i = 0; i < points * 2; i++) {
+      final angle = (i * math.pi / points) - (math.pi / 2);
+      final rX = i.isEven ? rx : innerRx;
+      final rY = i.isEven ? ry : innerRy;
+      final x = center.dx + rX * math.cos(angle);
+      final y = center.dy + rY * math.sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    return path;
+  }
+
+  void _drawArrowLine(Canvas canvas, Offset p1, Offset p2, Paint paint) {
+    canvas.drawLine(p1, p2, paint);
+    final angle = math.atan2(p2.dy - p1.dy, p2.dx - p1.dx);
+    const arrowSize = 16.0;
+
+    final arrowPath = Path()
+      ..moveTo(p2.dx, p2.dy)
+      ..lineTo(
+        p2.dx - arrowSize * math.cos(angle - math.pi / 6),
+        p2.dy - arrowSize * math.sin(angle - math.pi / 6),
+      )
+      ..lineTo(
+        p2.dx - arrowSize * math.cos(angle + math.pi / 6),
+        p2.dy - arrowSize * math.sin(angle + math.pi / 6),
+      )
+      ..close();
+
+    final fillHead = Paint()
+      ..color = paint.color
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(arrowPath, fillHead);
+  }
+
+  void _drawCoordinateAxes(Canvas canvas, Rect rect, Paint paint) {
+    final origin = Offset(rect.left + 30, rect.bottom - 30);
+    // X-Axis
+    _drawArrowLine(canvas, origin, Offset(rect.right, origin.dy), paint);
+    // Y-Axis
+    _drawArrowLine(canvas, origin, Offset(origin.dx, rect.top), paint);
+  }
+
+  void _draw3DCube(Canvas canvas, Rect rect, Paint strokePaint, Paint? fillPaint) {
+    final d = rect.width.abs() * 0.25;
+    final front = Rect.fromLTWH(rect.left, rect.top + d, rect.width.abs() - d, rect.height.abs() - d);
+    final back = Rect.fromLTWH(rect.left + d, rect.top, rect.width.abs() - d, rect.height.abs() - d);
+
+    if (fillPaint != null) {
+      canvas.drawRect(front, fillPaint);
+      canvas.drawRect(back, fillPaint);
+    }
+
+    canvas.drawRect(front, strokePaint);
+    canvas.drawRect(back, strokePaint);
+
+    canvas.drawLine(front.topLeft, back.topLeft, strokePaint);
+    canvas.drawLine(front.topRight, back.topRight, strokePaint);
+    canvas.drawLine(front.bottomLeft, back.bottomLeft, strokePaint);
+    canvas.drawLine(front.bottomRight, back.bottomRight, strokePaint);
   }
 
   void _drawDirectionalBlockEraser(Canvas canvas, DrawingStroke stroke) {

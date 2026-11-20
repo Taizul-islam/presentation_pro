@@ -8,8 +8,21 @@ enum DrawingTool {
   selector,
   hand,
   text,
+  shape,
   handwriting,
   laserPointer,
+}
+
+enum ShapeType {
+  rectangle,
+  circle,
+  triangle,
+  diamond,
+  star,
+  line,
+  arrow,
+  coordinateAxes,
+  cube,
 }
 
 enum LaserMode {
@@ -51,6 +64,8 @@ class DrawingStroke {
   final DusterType dusterType;
   final double strokeAngle;
   final bool isLocked;
+  final ShapeType? shapeType;
+  final Color? fillColor;
 
   DrawingStroke({
     required this.points,
@@ -60,6 +75,8 @@ class DrawingStroke {
     this.dusterType = DusterType.feltBlock,
     this.strokeAngle = 0.0,
     this.isLocked = false,
+    this.shapeType,
+    this.fillColor,
   });
 
   Rect get boundingBox {
@@ -89,6 +106,8 @@ class DrawingStroke {
       dusterType: dusterType,
       strokeAngle: strokeAngle,
       isLocked: isLocked,
+      shapeType: shapeType,
+      fillColor: fillColor,
     );
   }
 
@@ -106,6 +125,8 @@ class DrawingStroke {
       dusterType: dusterType,
       strokeAngle: strokeAngle,
       isLocked: isLocked,
+      shapeType: shapeType,
+      fillColor: fillColor,
     );
   }
 
@@ -130,6 +151,8 @@ class DrawingStroke {
       dusterType: dusterType,
       strokeAngle: strokeAngle + angle,
       isLocked: isLocked,
+      shapeType: shapeType,
+      fillColor: fillColor,
     );
   }
 
@@ -147,6 +170,8 @@ class DrawingStroke {
       dusterType: dusterType,
       strokeAngle: -strokeAngle,
       isLocked: isLocked,
+      shapeType: shapeType,
+      fillColor: fillColor,
     );
   }
 
@@ -158,6 +183,8 @@ class DrawingStroke {
     DusterType? dusterType,
     double? strokeAngle,
     bool? isLocked,
+    ShapeType? shapeType,
+    Color? fillColor,
   }) {
     return DrawingStroke(
       points: points ?? this.points,
@@ -167,6 +194,8 @@ class DrawingStroke {
       dusterType: dusterType ?? this.dusterType,
       strokeAngle: strokeAngle ?? this.strokeAngle,
       isLocked: isLocked ?? this.isLocked,
+      shapeType: shapeType ?? this.shapeType,
+      fillColor: fillColor ?? this.fillColor,
     );
   }
 }

@@ -17,6 +17,7 @@ import '../widgets/color_picker.dart';
 import '../widgets/duster_selector.dart';
 import '../widgets/handwriting_toolbar.dart';
 import '../widgets/laser_selector.dart';
+import '../widgets/shape_selector.dart';
 import '../widgets/settings_dialog.dart';
 import '../services/pptx_converter_libreoffice.dart';
 import '../services/export_service.dart';
@@ -60,6 +61,8 @@ class _PresentationScreenState extends State<PresentationScreen>
   LaserMode _selectedLaserMode = LaserMode.laserDot;
   Color _laserColor = Colors.redAccent;
   double _spotlightRadius = 100.0;
+  ShapeType _selectedShape = ShapeType.rectangle;
+  Color? _shapeFillColor;
   String _liveRecognizedText = '';
   bool _isAutoHandDusterEnabled = false;
   bool _isHandDusterActive = false;
@@ -221,6 +224,8 @@ class _PresentationScreenState extends State<PresentationScreen>
         tool: _selectedTool,
         dusterType: _selectedDusterType,
         strokeAngle: _currentDusterAngle,
+        shapeType: _selectedTool == DrawingTool.shape ? _selectedShape : null,
+        fillColor: _selectedTool == DrawingTool.shape ? _shapeFillColor : null,
       );
     });
   }
@@ -228,7 +233,15 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _updateStroke(Offset position) {
     if (_currentStroke != null) {
       setState(() {
-        _currentStroke!.points.add(position);
+        if (_selectedTool == DrawingTool.shape) {
+          if (_currentStroke!.points.length > 1) {
+            _currentStroke!.points[1] = position;
+          } else {
+            _currentStroke!.points.add(position);
+          }
+        } else {
+          _currentStroke!.points.add(position);
+        }
       });
     }
   }
@@ -982,11 +995,12 @@ $stackString
             ),
           if (_isDrawingMode &&
               (_selectedTool == DrawingTool.pen ||
-                  _selectedTool == DrawingTool.highlighter))
+                  _selectedTool == DrawingTool.highlighter ||
+                  _selectedTool == DrawingTool.shape))
             Positioned(
               left: 0,
               right: 0,
-              bottom: 60,
+              bottom: _selectedTool == DrawingTool.shape ? 120 : 60,
               child: Center(
                 child: SizedBox(
                   width: 440,
@@ -998,8 +1012,24 @@ $stackString
                     onColorTap: _showDrawingColorPicker,
                     min: 1.0,
                     max: 15.0,
-                    label: 'Stroke Width',
+                    label: _selectedTool == DrawingTool.shape ? 'Shape Line' : 'Stroke Width',
                   ),
+                ),
+              ),
+            ),
+          if (_isDrawingMode && _selectedTool == DrawingTool.shape)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 60,
+              child: Center(
+                child: ShapesToolbar(
+                  selectedShape: _selectedShape,
+                  fillColor: _shapeFillColor,
+                  onShapeChanged: (shape) =>
+                      setState(() => _selectedShape = shape),
+                  onFillColorChanged: (color) =>
+                      setState(() => _shapeFillColor = color),
                 ),
               ),
             ),
@@ -1612,6 +1642,8 @@ $stackString
                 _selectedTool == DrawingTool.eraser),
             _buildToolbarIcon(Icons.title, DrawingTool.text,
                 _selectedTool == DrawingTool.text),
+            _buildToolbarIcon(Icons.category, DrawingTool.shape,
+                _selectedTool == DrawingTool.shape),
             _buildToolbarIcon(Icons.near_me, DrawingTool.selector,
                 _selectedTool == DrawingTool.selector),
             _buildToolbarIcon(Icons.pan_tool_outlined, DrawingTool.hand,
