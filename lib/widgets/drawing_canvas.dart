@@ -696,75 +696,60 @@ class DrawingPainter extends CustomPainter {
   void _drawLaserPointerTrail(Canvas canvas, Size size) {
     final now = DateTime.now();
 
-    if (laserPoints.length >= 2) {
-      for (int i = 0; i < laserPoints.length - 1; i++) {
-        final p1 = laserPoints[i];
-        final p2 = laserPoints[i + 1];
-        final ageMs = now.difference(p2.timestamp).inMilliseconds;
-        if (ageMs > 1200) continue;
-        final alpha = (1.0 - ageMs / 1200.0).clamp(0.0, 1.0);
+    final validPoints = laserPoints.where((p) {
+      return now.difference(p.timestamp).inMilliseconds <= 700;
+    }).toList();
 
-        final double glowWidth = 24.0 * alpha;
-        final double coreWidth = 8.0 * alpha;
-
-        // 1. Thick Outer Neon Blur Glow Line
-        final outerGlowPaint = Paint()
-          ..color = laserColor.withOpacity(alpha * 0.6)
-          ..strokeWidth = glowWidth
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..style = PaintingStyle.stroke
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-        canvas.drawLine(p1.position, p2.position, outerGlowPaint);
-
-        // 2. Thick Outer Solid Line
-        final outerSolidPaint = Paint()
-          ..color = laserColor.withOpacity(alpha * 0.8)
-          ..strokeWidth = glowWidth * 0.6
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..style = PaintingStyle.stroke;
-        canvas.drawLine(p1.position, p2.position, outerSolidPaint);
-
-        // 3. Thick Inner Bright White Core Line
-        final innerCorePaint = Paint()
-          ..color = Colors.white.withOpacity(alpha * 0.95)
-          ..strokeWidth = coreWidth
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..style = PaintingStyle.stroke;
-        canvas.drawLine(p1.position, p2.position, innerCorePaint);
+    if (validPoints.length >= 2) {
+      final path = Path()..moveTo(validPoints.first.position.dx, validPoints.first.position.dy);
+      for (int i = 1; i < validPoints.length; i++) {
+        final p = validPoints[i].position;
+        final prev = validPoints[i - 1].position;
+        final mid = Offset((prev.dx + p.dx) / 2, (prev.dy + p.dy) / 2);
+        path.quadraticBezierTo(prev.dx, prev.dy, mid.dx, mid.dy);
       }
-    } else {
-      // Single point rendering
-      for (int i = 0; i < laserPoints.length; i++) {
-        final p = laserPoints[i];
-        final ageMs = now.difference(p.timestamp).inMilliseconds;
-        if (ageMs > 1200) continue;
-        final alpha = (1.0 - ageMs / 1200.0).clamp(0.0, 1.0);
 
-        final outerPaint = Paint()
-          ..color = laserColor.withOpacity(alpha * 0.6)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-        canvas.drawCircle(p.position, 18.0 * alpha, outerPaint);
+      // 1. Soft Outer Neon Glow Stroke
+      final outerGlowPaint = Paint()
+        ..color = laserColor.withOpacity(0.4)
+        ..strokeWidth = 12.0
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+      canvas.drawPath(path, outerGlowPaint);
 
-        final innerPaint = Paint()..color = Colors.white.withOpacity(alpha * 0.95);
-        canvas.drawCircle(p.position, 6.0 * alpha, innerPaint);
-      }
+      // 2. Solid Laser Main Color Stroke
+      final mainStrokePaint = Paint()
+        ..color = laserColor
+        ..strokeWidth = 5.0
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..style = PaintingStyle.stroke;
+      canvas.drawPath(path, mainStrokePaint);
+
+      // 3. Crisp Inner White Core Beam Line
+      final coreLinePaint = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 2.0
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..style = PaintingStyle.stroke;
+      canvas.drawPath(path, coreLinePaint);
     }
 
-    // Glowing Laser Tip Head
+    // Sleek Laser Pointer Tip Cursor
     if (hoverPosition != null) {
       final outerGlow = Paint()
-        ..color = laserColor.withOpacity(0.7)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-      canvas.drawCircle(hoverPosition!, 20.0, outerGlow);
+        ..color = laserColor.withOpacity(0.6)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      canvas.drawCircle(hoverPosition!, 10.0, outerGlow);
 
       final mainColorDot = Paint()..color = laserColor;
-      canvas.drawCircle(hoverPosition!, 12.0, mainColorDot);
+      canvas.drawCircle(hoverPosition!, 6.0, mainColorDot);
 
       final centerWhiteCore = Paint()..color = Colors.white;
-      canvas.drawCircle(hoverPosition!, 6.0, centerWhiteCore);
+      canvas.drawCircle(hoverPosition!, 2.5, centerWhiteCore);
     }
   }
 
