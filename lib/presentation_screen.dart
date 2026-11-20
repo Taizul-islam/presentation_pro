@@ -167,16 +167,6 @@ class _PresentationScreenState extends State<PresentationScreen>
     });
   }
 
-  void _disableDrawingMode() {
-    setState(() {
-      _isDrawingMode = false;
-      _isToolbarVisible = false;
-      _currentStroke = null;
-      _isMenuVisible = false;
-      _isSidebarCollapsed = false;
-    });
-  }
-
   void _handleHandTouchDetected(bool isHand, double size) {
     if (!_isAutoHandDusterEnabled) return;
 
@@ -1610,8 +1600,6 @@ $stackString
           children: [
             _buildToolbarIcon(
                 Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
-            _buildToolbarIcon(Icons.brush, DrawingTool.highlighter,
-                _selectedTool == DrawingTool.highlighter),
             IconButton(
               icon: Icon(Icons.format_color_fill, size: 22, color: iconColor),
               onPressed: _showBackgroundColorPicker,
@@ -1710,46 +1698,6 @@ $stackString
       _pages = List.from(_pages);
       _activeSelectedIndices = [];
       _activeSelectionRect = null;
-    });
-  }
-
-  void _duplicateSelectedElements() {
-    if (_activeSelectedIndices.isEmpty && _activeTextIndex == null) return;
-
-    setState(() {
-      _saveToHistory();
-      final page = _pages[_currentPageIndex];
-      final List<DrawingStroke> updatedStrokes =
-      List<DrawingStroke>.from(page.strokes);
-      final List<DrawingText> updatedTexts =
-      List<DrawingText>.from(page.texts);
-
-      final Offset normalizedOffset = const Offset(0.01, 0.02);
-
-      List<int> newStrokesSelection = [];
-      int? newTextSelection;
-
-      for (final index in _activeSelectedIndices) {
-        if (index < page.strokes.length) {
-          final clone = page.strokes[index].translate(normalizedOffset);
-          updatedStrokes.add(clone);
-          newStrokesSelection.add(updatedStrokes.length - 1);
-        }
-      }
-
-      if (_activeTextIndex != null && _activeTextIndex! < page.texts.length) {
-        final clone =
-        page.texts[_activeTextIndex!].translate(normalizedOffset);
-        updatedTexts.add(clone);
-        newTextSelection = updatedTexts.length - 1;
-      }
-
-      _pages[_currentPageIndex] =
-          page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
-      _pages = List.from(_pages);
-
-      _activeSelectedIndices = newStrokesSelection;
-      _activeTextIndex = newTextSelection;
     });
   }
 
@@ -2349,68 +2297,6 @@ $stackString
     });
   }
 
-  void _mirrorSelected(double slideWidth, double slideHeight) {
-    if ((_activeSelectedIndices.isEmpty && _activeTextIndex == null) ||
-        _activeSelectionRect == null) return;
-    setState(() {
-      _saveToHistory();
-      final page = _pages[_currentPageIndex];
-
-      final pixelCenter = _activeSelectionRect!.center;
-      final normalizedCenter = Offset(
-          pixelCenter.dx / slideWidth, pixelCenter.dy / slideHeight);
-
-      final updatedStrokes = List<DrawingStroke>.from(page.strokes);
-      for (final index in _activeSelectedIndices) {
-        if (index < updatedStrokes.length) {
-          updatedStrokes[index] =
-              updatedStrokes[index].flip(true, normalizedCenter);
-        }
-      }
-
-      final updatedTexts = List<DrawingText>.from(page.texts);
-      if (_activeTextIndex != null && _activeTextIndex! < updatedTexts.length) {
-        updatedTexts[_activeTextIndex!] =
-            updatedTexts[_activeTextIndex!].flip(true, normalizedCenter);
-      }
-
-      _pages[_currentPageIndex] =
-          page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
-      _pages = List.from(_pages);
-    });
-  }
-
-  void _flipSelected(double slideWidth, double slideHeight) {
-    if ((_activeSelectedIndices.isEmpty && _activeTextIndex == null) ||
-        _activeSelectionRect == null) return;
-    setState(() {
-      _saveToHistory();
-      final page = _pages[_currentPageIndex];
-
-      final pixelCenter = _activeSelectionRect!.center;
-      final normalizedCenter = Offset(
-          pixelCenter.dx / slideWidth, pixelCenter.dy / slideHeight);
-
-      final updatedStrokes = List<DrawingStroke>.from(page.strokes);
-      for (final index in _activeSelectedIndices) {
-        if (index < updatedStrokes.length) {
-          updatedStrokes[index] =
-              updatedStrokes[index].flip(false, normalizedCenter);
-        }
-      }
-
-      final updatedTexts = List<DrawingText>.from(page.texts);
-      if (_activeTextIndex != null && _activeTextIndex! < updatedTexts.length) {
-        updatedTexts[_activeTextIndex!] =
-            updatedTexts[_activeTextIndex!].flip(false, normalizedCenter);
-      }
-
-      _pages[_currentPageIndex] =
-          page.copyWith(strokes: updatedStrokes, texts: updatedTexts);
-      _pages = List.from(_pages);
-    });
-  }
-
   void _handleTextCreated(Offset position) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final defaultTextColor = isDark ? Colors.white : Colors.black;
@@ -2538,98 +2424,6 @@ $stackString
           _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
       _pages = List.from(_pages);
     });
-  }
-
-  Widget _buildColorSubMenu(
-      Rect rect, double slideWidth, double slideHeight) {
-    const double toolbarWidth = 45.0;
-    const double toolbarHeight = 225.0;
-    const double expandedMenuWidth = 220.0;
-    const double colorSubMenuWidth = 240.0;
-    const double colorSubMenuHeight = 90.0;
-    const double subMenuWidth = 240.0;
-    const double horizontalPadding = 10.0;
-    const double verticalPadding = 10.0;
-
-    double totalChainWidth = toolbarWidth +
-        horizontalPadding +
-        expandedMenuWidth +
-        horizontalPadding +
-        subMenuWidth;
-    bool hasSpaceOnRight = (rect.right + totalChainWidth + 20) < slideWidth;
-
-    double toolbarLeft = hasSpaceOnRight
-        ? (rect.right + horizontalPadding)
-        : (rect.left - horizontalPadding - toolbarWidth);
-    double toolbarTop = rect.top.clamp(verticalPadding,
-        (slideHeight - toolbarHeight - verticalPadding).clamp(verticalPadding, slideHeight));
-
-    double left = hasSpaceOnRight
-        ? (toolbarLeft + toolbarWidth + horizontalPadding + expandedMenuWidth + 5)
-        : (toolbarLeft -
-        horizontalPadding -
-        expandedMenuWidth -
-        5 -
-        colorSubMenuWidth);
-
-    double top = (toolbarTop + 90.0).clamp(
-        verticalPadding, slideHeight - colorSubMenuHeight - verticalPadding);
-
-    final List<Color> colors = [
-      Colors.red,
-      Colors.blue,
-      Colors.green,
-      Colors.black,
-      Colors.orange,
-      Colors.purple,
-      Colors.pink,
-      Colors.brown,
-    ];
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Positioned(
-      left: left,
-      top: top,
-      child: GestureDetector(
-        onTap: () {},
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          width: colorSubMenuWidth,
-          height: colorSubMenuHeight,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 10)
-            ],
-            border: Border.all(
-              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-            ),
-          ),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: colors
-                .map((color) => GestureDetector(
-              onTap: () => _updateSelectedStrokesColor(color),
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border:
-                  Border.all(color: Colors.grey.shade300),
-                ),
-              ),
-            ))
-                .toList(),
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildContextAction(IconData icon, VoidCallback onTap, Color color) {
