@@ -68,175 +68,115 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
     return '#${argb.substring(2).toUpperCase()}';
   }
 
-  bool get _isLightColor => _selectedColor.computeLuminance() > 0.5;
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dialogBg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.grey.shade800;
     final labelColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
+    final borderColor = isDark ? Colors.grey.shade800 : Colors.grey.shade300;
 
     return Dialog(
       backgroundColor: dialogBg,
       elevation: 16,
       shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
-        width: 400,
-        padding: const EdgeInsets.all(20),
+        width: 360,
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header: Swatch + Title + Hex Badge + Close
             Row(
               children: [
+                // Live Color Swatch Indicator
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
-                    color: Colors.indigo.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    color: _selectedColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                      width: 1.5,
+                    ),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
                   ),
-                  child: Icon(widget.icon, color: Colors.indigoAccent, size: 20),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     widget.title,
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                _buildHexBadge(context, isDark),
+                const SizedBox(width: 6),
                 IconButton(
-                  icon: Icon(Icons.close, size: 20, color: Colors.grey.shade500),
+                  icon: Icon(Icons.close, size: 18, color: Colors.grey.shade500),
                   onPressed: () => Navigator.pop(context),
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+            const SizedBox(height: 12),
 
-            // Live Color Preview & Hex Chip
-            Container(
-              width: double.infinity,
-              height: 46,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: _selectedColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: borderColor, width: 1),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.color_lens_outlined,
-                        size: 18,
-                        color: _isLightColor ? Colors.black87 : Colors.white,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _hexString,
-                        style: GoogleFonts.poppins(
-                          color: _isLightColor ? Colors.black87 : Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                  InkWell(
-                    onTap: () {
-                      final isDark = Theme.of(context).brightness == Brightness.dark;
-                      Clipboard.setData(ClipboardData(text: _hexString));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                          backgroundColor:
-                              isDark ? const Color(0xFF2A2A3C) : Colors.indigo,
-                          content: Text(
-                            'Color code $_hexString copied!',
-                            style: GoogleFonts.poppins(color: Colors.white),
-                          ),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.copy_rounded,
-                        size: 16,
-                        color: _isLightColor ? Colors.black87 : Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Preset Palette Swatches
+            // Preset Swatches
             Text(
               'Presets',
               style: GoogleFonts.poppins(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: labelColor,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: _presetColors.map((color) {
                 final isSelected = _selectedColor.toARGB32() == color.toARGB32();
                 return GestureDetector(
                   onTap: () => setState(() => _selectedColor = color),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    width: 28,
-                    height: 28,
+                    width: 24,
+                    height: 24,
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? Colors.indigoAccent : borderColor,
-                        width: isSelected ? 3.0 : 1.0,
+                        color: isSelected
+                            ? Colors.indigoAccent
+                            : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                        width: isSelected ? 2.5 : 1.0,
                       ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
                                 color: Colors.indigo.withOpacity(0.4),
-                                blurRadius: 6,
-                                spreadRadius: 1,
+                                blurRadius: 4,
                               )
                             ]
-                          : const [
-                              BoxShadow(color: Colors.black12, blurRadius: 2)
-                            ],
+                          : const [BoxShadow(color: Colors.black12, blurRadius: 2)],
                     ),
                     child: isSelected
                         ? Center(
                             child: Icon(
                               Icons.check,
-                              size: 14,
+                              size: 12,
                               color: color.computeLuminance() > 0.5
                                   ? Colors.black87
                                   : Colors.white,
@@ -247,35 +187,35 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // 2D Saturation / Value Gradient Canvas
+            // 2D Saturation & Brightness Canvas
             Text(
               'Saturation & Brightness',
               style: GoogleFonts.poppins(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: labelColor,
               ),
             ),
-            const SizedBox(height: 8),
-            _buildSatValBox(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 6),
+            _buildSatValBox(borderColor),
+            const SizedBox(height: 12),
 
             // Rainbow Hue Slider
             Text(
               'Hue',
               style: GoogleFonts.poppins(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: labelColor,
               ),
             ),
-            const SizedBox(height: 8),
-            _buildHueSlider(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 6),
+            _buildHueSlider(borderColor),
+            const SizedBox(height: 16),
 
-            // Dialog Actions
+            // Actions
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -283,29 +223,29 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
                     foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    visualDensity: VisualDensity.compact,
                   ),
                   child: Text(
                     'Cancel',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                    style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () => widget.onColorSelected(_selectedColor),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo,
+                    backgroundColor: Colors.indigoAccent,
                     foregroundColor: Colors.white,
                     elevation: 2,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   child: Text(
                     'Apply Color',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -317,9 +257,61 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
     );
   }
 
-  Widget _buildSatValBox() {
+  Widget _buildHexBadge(BuildContext context, bool isDark) {
+    return InkWell(
+      onTap: () {
+        Clipboard.setData(ClipboardData(text: _hexString));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 70, left: 20, right: 20),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            backgroundColor: isDark ? const Color(0xFF2A2A3C) : Colors.indigo,
+            content: Text(
+              'Color code $_hexString copied!',
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
+            ),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF252536) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _hexString,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.grey.shade800,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.copy_rounded,
+              size: 12,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSatValBox(Color borderColor) {
     final hsv = HSVColor.fromColor(_selectedColor);
-    const height = 150.0;
+    const height = 120.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -333,8 +325,8 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
           setState(() => _selectedColor = newColor);
         }
 
-        final cursorLeft = (hsv.saturation * width - 10.0).clamp(0.0, width - 20.0);
-        final cursorTop = ((1.0 - hsv.value) * height - 10.0).clamp(0.0, height - 20.0);
+        final cursorLeft = (hsv.saturation * width - 9.0).clamp(0.0, width - 18.0);
+        final cursorTop = ((1.0 - hsv.value) * height - 9.0).clamp(0.0, height - 18.0);
 
         return GestureDetector(
           onPanDown: (details) => updateColor(details.localPosition),
@@ -343,19 +335,17 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
             width: width,
             height: height,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: borderColor),
               boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(11),
               child: Stack(
                 children: [
-                  // Hue Base Color
                   Container(
                     color: HSVColor.fromAHSV(1.0, hsv.hue, 1.0, 1.0).toColor(),
                   ),
-                  // Saturation White Gradient
                   Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
@@ -365,7 +355,6 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
                       ),
                     ),
                   ),
-                  // Value Black Gradient
                   Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
@@ -375,19 +364,18 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
                       ),
                     ),
                   ),
-                  // Cursor Indicator
                   Positioned(
                     left: cursorLeft,
                     top: cursorTop,
                     child: Container(
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: _selectedColor,
-                        border: Border.all(color: Colors.white, width: 2.5),
+                        border: Border.all(color: Colors.white, width: 2.0),
                         boxShadow: const [
-                          BoxShadow(color: Colors.black38, blurRadius: 4)
+                          BoxShadow(color: Colors.black38, blurRadius: 3)
                         ],
                       ),
                     ),
@@ -401,7 +389,7 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
     );
   }
 
-  Widget _buildHueSlider() {
+  Widget _buildHueSlider(Color borderColor) {
     final currentHue = HSVColor.fromColor(_selectedColor).hue;
 
     return LayoutBuilder(
@@ -416,17 +404,16 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
           setState(() => _selectedColor = newColor);
         }
 
-        // Padded thumb offset so circle stays inside track
-        final thumbLeft = ((currentHue / 360.0) * (width - 24.0)).clamp(0.0, width - 24.0);
+        final thumbLeft = ((currentHue / 360.0) * (width - 20.0)).clamp(0.0, width - 20.0);
 
         return GestureDetector(
           onPanDown: (details) => updateHue(details.localPosition),
           onPanUpdate: (details) => updateHue(details.localPosition),
           child: Container(
-            height: 26,
+            height: 18,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: Colors.grey.shade300, width: 1),
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: borderColor, width: 1),
               boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 3)],
               gradient: const LinearGradient(
                 colors: [
@@ -445,17 +432,17 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
               children: [
                 Positioned(
                   left: thumbLeft,
-                  top: 0,
-                  bottom: 0,
+                  top: -1,
+                  bottom: -1,
                   child: Container(
-                    width: 24,
-                    height: 24,
+                    width: 20,
+                    height: 20,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: HSVColor.fromAHSV(1.0, currentHue, 1.0, 1.0).toColor(),
-                      border: Border.all(color: Colors.white, width: 2.5),
+                      border: Border.all(color: Colors.white, width: 2.0),
                       boxShadow: const [
-                        BoxShadow(color: Colors.black26, blurRadius: 4)
+                        BoxShadow(color: Colors.black26, blurRadius: 3)
                       ],
                     ),
                   ),
