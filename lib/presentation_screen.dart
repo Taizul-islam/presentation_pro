@@ -61,7 +61,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   Color _laserColor = Colors.redAccent;
   double _spotlightRadius = 100.0;
   String _liveRecognizedText = '';
-  bool _isAutoHandDusterEnabled = true;
+  bool _isAutoHandDusterEnabled = false;
   bool _isHandDusterActive = false;
   DrawingTool? _previousToolBeforeHandDuster;
   Offset? _hoverPosition;
@@ -1627,33 +1627,6 @@ $stackString
                 _selectedTool == DrawingTool.highlighter),
             _buildToolbarIcon(Icons.flare, DrawingTool.laserPointer,
                 _selectedTool == DrawingTool.laserPointer),
-            _buildToolbarIcon(Icons.spellcheck, DrawingTool.handwriting,
-                _selectedTool == DrawingTool.handwriting),
-            IconButton(
-              icon: Icon(
-                Icons.auto_awesome,
-                size: 20,
-                color: _isAutoHandDusterEnabled
-                    ? Colors.orange.shade800
-                    : (isDark ? Colors.white54 : Colors.grey),
-              ),
-              onPressed: () {
-                setState(() =>
-                    _isAutoHandDusterEnabled = !_isAutoHandDusterEnabled);
-                _showSnackBar(
-                  _isAutoHandDusterEnabled
-                      ? 'Auto Hand Duster AI Enabled'
-                      : 'Auto Hand Duster Disabled',
-                  _isAutoHandDusterEnabled
-                      ? Colors.orange.shade800
-                      : Colors.grey.shade700,
-                  Icons.auto_awesome,
-                );
-              },
-              tooltip: _isAutoHandDusterEnabled
-                  ? 'Auto Hand Duster AI: ON'
-                  : 'Auto Hand Duster AI: OFF',
-            ),
             VerticalDivider(
               width: 20,
               color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
