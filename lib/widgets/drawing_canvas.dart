@@ -1293,6 +1293,9 @@ DrawingStroke _scaleStrokeToPixels(DrawingStroke stroke, Size size) {
     width: stroke.width * widthScale,
     tool: stroke.tool,
     dusterType: stroke.dusterType,
+    strokeAngle: stroke.strokeAngle,
     isLocked: stroke.isLocked,
+    shapeType: stroke.shapeType,
+    fillColor: stroke.fillColor,
   );
 }
