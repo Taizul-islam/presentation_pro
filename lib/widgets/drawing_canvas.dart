@@ -695,27 +695,76 @@ class DrawingPainter extends CustomPainter {
 
   void _drawLaserPointerTrail(Canvas canvas, Size size) {
     final now = DateTime.now();
-    for (int i = 0; i < laserPoints.length; i++) {
-      final p = laserPoints[i];
-      final ageMs = now.difference(p.timestamp).inMilliseconds;
-      if (ageMs > 1200) continue;
-      final alpha = (1.0 - ageMs / 1200.0).clamp(0.0, 1.0);
 
-      final outerPaint = Paint()
-        ..color = laserColor.withOpacity(alpha * 0.4)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-      canvas.drawCircle(p.position, 12.0 * alpha, outerPaint);
+    if (laserPoints.length >= 2) {
+      for (int i = 0; i < laserPoints.length - 1; i++) {
+        final p1 = laserPoints[i];
+        final p2 = laserPoints[i + 1];
+        final ageMs = now.difference(p2.timestamp).inMilliseconds;
+        if (ageMs > 1200) continue;
+        final alpha = (1.0 - ageMs / 1200.0).clamp(0.0, 1.0);
 
-      final innerPaint = Paint()..color = Colors.white.withOpacity(alpha);
-      canvas.drawCircle(p.position, 3.0 * alpha, innerPaint);
+        final double glowWidth = 24.0 * alpha;
+        final double coreWidth = 8.0 * alpha;
+
+        // 1. Thick Outer Neon Blur Glow Line
+        final outerGlowPaint = Paint()
+          ..color = laserColor.withOpacity(alpha * 0.6)
+          ..strokeWidth = glowWidth
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+        canvas.drawLine(p1.position, p2.position, outerGlowPaint);
+
+        // 2. Thick Outer Solid Line
+        final outerSolidPaint = Paint()
+          ..color = laserColor.withOpacity(alpha * 0.8)
+          ..strokeWidth = glowWidth * 0.6
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
+        canvas.drawLine(p1.position, p2.position, outerSolidPaint);
+
+        // 3. Thick Inner Bright White Core Line
+        final innerCorePaint = Paint()
+          ..color = Colors.white.withOpacity(alpha * 0.95)
+          ..strokeWidth = coreWidth
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
+        canvas.drawLine(p1.position, p2.position, innerCorePaint);
+      }
+    } else {
+      // Single point rendering
+      for (int i = 0; i < laserPoints.length; i++) {
+        final p = laserPoints[i];
+        final ageMs = now.difference(p.timestamp).inMilliseconds;
+        if (ageMs > 1200) continue;
+        final alpha = (1.0 - ageMs / 1200.0).clamp(0.0, 1.0);
+
+        final outerPaint = Paint()
+          ..color = laserColor.withOpacity(alpha * 0.6)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+        canvas.drawCircle(p.position, 18.0 * alpha, outerPaint);
+
+        final innerPaint = Paint()..color = Colors.white.withOpacity(alpha * 0.95);
+        canvas.drawCircle(p.position, 6.0 * alpha, innerPaint);
+      }
     }
 
+    // Glowing Laser Tip Head
     if (hoverPosition != null) {
-      final mainGlow = Paint()
-        ..color = laserColor
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-      canvas.drawCircle(hoverPosition!, 10, mainGlow);
-      canvas.drawCircle(hoverPosition!, 4, Paint()..color = Colors.white);
+      final outerGlow = Paint()
+        ..color = laserColor.withOpacity(0.7)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+      canvas.drawCircle(hoverPosition!, 20.0, outerGlow);
+
+      final mainColorDot = Paint()..color = laserColor;
+      canvas.drawCircle(hoverPosition!, 12.0, mainColorDot);
+
+      final centerWhiteCore = Paint()..color = Colors.white;
+      canvas.drawCircle(hoverPosition!, 6.0, centerWhiteCore);
     }
   }
 
