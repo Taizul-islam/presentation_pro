@@ -34,60 +34,60 @@ class LaserPointerToolbar extends StatelessWidget {
 
     return Container(
       width: 440,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? Colors.grey.shade800 : Colors.transparent,
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
           width: 1,
         ),
         boxShadow: const [
           BoxShadow(
             color: Colors.black12,
-            blurRadius: 12,
-            offset: Offset(0, 4),
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Row 1: Mode Selection Cards
+          // Row 1: Compact Segmented Mode Controls
           Row(
             children: [
               Expanded(
-                child: _buildModeCard(
+                child: _buildSegmentButton(
                   context: context,
                   mode: LaserMode.laserDot,
-                  title: 'Laser Pointer',
-                  subtitle: 'Fading laser trail',
+                  label: 'Laser Pointer',
                   icon: Icons.flare,
                   activeColor: Colors.redAccent,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildModeCard(
+                child: _buildSegmentButton(
                   context: context,
                   mode: LaserMode.spotlight,
-                  title: 'Torch Spotlight',
-                  subtitle: 'Focus beam on slide',
+                  label: 'Torch Spotlight',
                   icon: Icons.wb_sunny_outlined,
                   activeColor: Colors.amber.shade800,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          const Divider(height: 1),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
-          // Row 2: Settings (Color or Spotlight Radius)
+          // Row 2: Dynamic Mode Controls (Color or Spotlight Size)
           if (!isSpotlight) ...[
             Row(
               children: [
-                Icon(Icons.palette_outlined, size: 15, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                Icon(
+                  Icons.palette_outlined,
+                  size: 14,
+                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Laser Glow Color:',
@@ -104,18 +104,20 @@ class LaserPointerToolbar extends StatelessWidget {
                     return GestureDetector(
                       onTap: () => onColorChanged(color),
                       child: Container(
-                        width: 24,
-                        height: 24,
+                        width: 22,
+                        height: 22,
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isSelected ? Colors.indigoAccent : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                            color: isSelected
+                                ? Colors.indigoAccent
+                                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                             width: isSelected ? 2.5 : 1.0,
                           ),
                           boxShadow: isSelected
-                              ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 6)]
+                              ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 5)]
                               : const [BoxShadow(color: Colors.black12, blurRadius: 2)],
                         ),
                       ),
@@ -127,7 +129,11 @@ class LaserPointerToolbar extends StatelessWidget {
           ] else ...[
             Row(
               children: [
-                Icon(Icons.center_focus_strong, size: 16, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                Icon(
+                  Icons.center_focus_strong,
+                  size: 14,
+                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Spotlight Size',
@@ -141,9 +147,9 @@ class LaserPointerToolbar extends StatelessWidget {
                 Expanded(
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                      trackHeight: 2.5,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5.5),
+                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
                     ),
                     child: Slider(
                       value: spotlightRadius,
@@ -156,20 +162,20 @@ class LaserPointerToolbar extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  width: 38,
+                  width: 32,
                   alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF252536) : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: isDark ? Colors.grey.shade800 : Colors.transparent,
+                      color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
                     ),
                   ),
                   child: Text(
                     '${spotlightRadius.toInt()}',
                     style: GoogleFonts.poppins(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: Colors.amber.shade700,
                     ),
@@ -183,75 +189,56 @@ class LaserPointerToolbar extends StatelessWidget {
     );
   }
 
-  Widget _buildModeCard({
+  Widget _buildSegmentButton({
     required BuildContext context,
     required LaserMode mode,
-    required String title,
-    required String subtitle,
+    required String label,
     required IconData icon,
     required Color activeColor,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSelected = selectedMode == mode;
 
-    final cardBg = isSelected
-        ? activeColor.withOpacity(isDark ? 0.25 : 0.08)
-        : (isDark ? const Color(0xFF252536) : Colors.grey.shade50);
+    final btnBg = isSelected
+        ? activeColor.withOpacity(isDark ? 0.25 : 0.12)
+        : (isDark ? const Color(0xFF252536) : Colors.grey.shade100);
     final borderColor = isSelected
         ? activeColor
         : (isDark ? Colors.grey.shade800 : Colors.grey.shade300);
-    final titleColor = isSelected
+    final textColor = isSelected
         ? activeColor
         : (isDark ? Colors.grey.shade300 : Colors.grey.shade800);
-    final iconColor = isSelected
-        ? activeColor
-        : (isDark ? Colors.grey.shade400 : Colors.grey.shade600);
 
     return InkWell(
       onTap: () => onModeChanged(mode),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(8),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(10),
+          color: btnBg,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: borderColor,
-            width: isSelected ? 2 : 1,
+            width: isSelected ? 1.5 : 1.0,
           ),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 22,
-              color: iconColor,
+              size: 15,
+              color: textColor,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: titleColor,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: 8,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: textColor,
               ),
             ),
           ],
