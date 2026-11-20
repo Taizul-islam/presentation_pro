@@ -248,6 +248,7 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   void _endStroke() {
     if (_currentStroke != null && _currentStroke!.points.length > 1) {
+      final wasShape = _selectedTool == DrawingTool.shape;
       setState(() {
         _saveToHistory();
 
@@ -258,6 +259,12 @@ class _PresentationScreenState extends State<PresentationScreen>
             _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
         _currentStroke = null;
         _pages = List.from(_pages);
+
+        if (wasShape) {
+          _activeSelectedIndices = [updatedStrokes.length - 1];
+          _activeTextIndex = null;
+          _selectedTool = DrawingTool.selector;
+        }
 
         if (_selectedTool == DrawingTool.handwriting) {
           _updateHandwritingRecognition();
