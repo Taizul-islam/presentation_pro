@@ -1639,17 +1639,17 @@ $stackString
           children: [
             _buildToolbarIcon(
                 Icons.edit, DrawingTool.pen, _selectedTool == DrawingTool.pen),
+            _buildToolbarIcon(Icons.auto_fix_high, DrawingTool.eraser,
+                _selectedTool == DrawingTool.eraser),
+            _buildToolbarIcon(Icons.category, DrawingTool.shape,
+                _selectedTool == DrawingTool.shape),
             IconButton(
               icon: Icon(Icons.format_color_fill, size: 22, color: iconColor),
               onPressed: _showBackgroundColorPicker,
               tooltip: 'Background Color',
             ),
-            _buildToolbarIcon(Icons.auto_fix_high, DrawingTool.eraser,
-                _selectedTool == DrawingTool.eraser),
             _buildToolbarIcon(Icons.title, DrawingTool.text,
                 _selectedTool == DrawingTool.text),
-            _buildToolbarIcon(Icons.category, DrawingTool.shape,
-                _selectedTool == DrawingTool.shape),
             _buildToolbarIcon(Icons.near_me, DrawingTool.selector,
                 _selectedTool == DrawingTool.selector),
             _buildToolbarIcon(Icons.pan_tool_outlined, DrawingTool.hand,
