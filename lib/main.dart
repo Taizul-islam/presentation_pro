@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:mobile/splash_screen.dart';
-import 'package:mobile/services/theme_notifier.dart';
+import 'splash_screen.dart';
+import 'services/theme_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
