@@ -14,8 +14,10 @@ void main() async {
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.normal,
+    title: 'Presentation Pro',
   );
   windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setTitle('Presentation Pro');
     await windowManager.show();
     await windowManager.focus();
   });
