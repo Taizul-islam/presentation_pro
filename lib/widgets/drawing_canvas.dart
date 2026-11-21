@@ -201,7 +201,10 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               final pos = event.localPosition;
               _lastPointerPos = pos;
               _addLaserPoint(pos);
-              if (widget.selectedTool == DrawingTool.selector) {
+              if (widget.selectedTool == DrawingTool.laserPointer) {
+                widget.onHoverUpdate(pos);
+                return;
+              } else if (widget.selectedTool == DrawingTool.selector) {
                 _handleSelectionStart(pos);
               } else if (widget.selectedTool == DrawingTool.shape &&
                   _tryHandleExistingShapeInteraction(pos)) {
