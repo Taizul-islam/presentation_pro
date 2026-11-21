@@ -249,6 +249,9 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _endStroke() {
     if (_currentStroke != null && _currentStroke!.points.length > 1) {
       final wasShape = _selectedTool == DrawingTool.shape;
+      final wasEraser = _selectedTool == DrawingTool.eraser;
+      final strokeToPrune = _currentStroke;
+
       setState(() {
         _saveToHistory();
 
@@ -259,6 +262,10 @@ class _PresentationScreenState extends State<PresentationScreen>
             _pages[_currentPageIndex].copyWith(strokes: updatedStrokes);
         _currentStroke = null;
         _pages = List.from(_pages);
+
+        if (wasEraser && strokeToPrune != null) {
+          _pruneErasedStrokes(strokeToPrune);
+        }
 
         if (wasShape) {
           _activeSelectedIndices = [updatedStrokes.length - 1];
@@ -274,6 +281,83 @@ class _PresentationScreenState extends State<PresentationScreen>
         _currentStroke = null;
       });
     }
+  }
+
+  void _pruneErasedStrokes(DrawingStroke eraserStroke) {
+    if (eraserStroke.points.isEmpty) return;
+
+    final currentPage = _pages[_currentPageIndex];
+    final List<DrawingStroke> updatedStrokes = [];
+
+    // Calculate normalized eraser radius
+    final double radius = (eraserStroke.width / 1920.0) * 1.5;
+
+    for (final stroke in currentPage.strokes) {
+      if (stroke.isLocked || stroke.tool == DrawingTool.eraser) {
+        updatedStrokes.add(stroke);
+        continue;
+      }
+
+      // Check if stroke intersects eraser path
+      if (_strokeIntersectsEraser(stroke, eraserStroke.points, radius)) {
+        // If stroke is a shape, remove it if intersected
+        if (stroke.tool == DrawingTool.shape || stroke.shapeType != null) {
+          continue; // Erased
+        }
+
+        // Split freehand stroke into remaining sub-strokes
+        final subStrokes = _splitStrokeByEraser(stroke, eraserStroke.points, radius);
+        updatedStrokes.addAll(subStrokes);
+      } else {
+        updatedStrokes.add(stroke);
+      }
+    }
+
+    _pages[_currentPageIndex] =
+        currentPage.copyWith(strokes: updatedStrokes);
+    _pages = List.from(_pages);
+  }
+
+  bool _strokeIntersectsEraser(DrawingStroke stroke, List<Offset> eraserPoints, double radius) {
+    if (stroke.points.isEmpty || eraserPoints.isEmpty) return false;
+
+    // Fast bounding box check
+    final strokeBox = stroke.boundingBox.inflate(radius);
+    final bool bboxHits = eraserPoints.any((ep) => strokeBox.contains(ep));
+    if (!bboxHits) return false;
+
+    // Detailed point proximity check
+    for (final sp in stroke.points) {
+      for (final ep in eraserPoints) {
+        if ((sp - ep).distance <= radius) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  List<DrawingStroke> _splitStrokeByEraser(DrawingStroke stroke, List<Offset> eraserPoints, double radius) {
+    final List<DrawingStroke> result = [];
+    List<Offset> currentSegment = [];
+
+    for (final sp in stroke.points) {
+      bool isErased = eraserPoints.any((ep) => (sp - ep).distance <= radius);
+      if (!isErased) {
+        currentSegment.add(sp);
+      } else {
+        if (currentSegment.length >= 2) {
+          result.add(stroke.copyWith(points: List.from(currentSegment)));
+        }
+        currentSegment.clear();
+      }
+    }
+
+    if (currentSegment.length >= 2) {
+      result.add(stroke.copyWith(points: List.from(currentSegment)));
+    }
+
+    return result;
   }
 
   void _updateHandwritingRecognition() {

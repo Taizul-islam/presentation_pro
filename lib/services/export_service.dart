@@ -255,6 +255,9 @@ class ExportService {
 
       final double scaleFactor = targetWidth / 1920.0;
 
+      // Save an isolated layer for strokes & duster masks so BlendMode.clear never burns holes through background PDF/image
+      canvas.saveLayer(Rect.fromLTWH(0, 0, targetWidth, targetHeight), Paint());
+
       for (final stroke in page.strokes) {
         if (stroke.points.length < 2) continue;
 
@@ -313,6 +316,8 @@ class ExportService {
 
         canvas.drawPath(path, paint);
       }
+
+      canvas.restore();
 
       for (final textElement in page.texts) {
         if (textElement.text.trim().isEmpty) continue;
