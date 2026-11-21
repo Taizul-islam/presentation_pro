@@ -10,6 +10,7 @@ void main() async {
 
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1280, 800),
+    minimumSize: Size(960, 600),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
@@ -17,6 +18,7 @@ void main() async {
     title: 'Presentation Pro',
   );
   windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setMinimumSize(const Size(960, 600));
     await windowManager.setTitle('Presentation Pro');
     await windowManager.show();
     await windowManager.focus();

@@ -8,6 +8,7 @@ class MainFlutterWindow: NSWindow {
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
     self.title = "Presentation Pro"
+    self.minSize = NSSize(width: 960, height: 600)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
