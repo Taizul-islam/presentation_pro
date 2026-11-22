@@ -597,7 +597,14 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
         newRect = newRect == null ? pixelBox : newRect.expandToInclude(pixelBox);
       }
     }
-    _selectionRect = newRect;
+
+    // Ignore 0-size / micro selection boxes (less than 6px width or height)
+    if (newRect != null && (newRect.width < 6.0 && newRect.height < 6.0)) {
+      _selectionRect = null;
+      _selectedIndices = [];
+    } else {
+      _selectionRect = newRect;
+    }
   }
 
   bool _isPointNearStroke(Offset point, DrawingStroke stroke, double maxDistance) {

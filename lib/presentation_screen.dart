@@ -248,6 +248,18 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   void _endStroke() {
     if (_currentStroke != null && _currentStroke!.points.length > 1) {
+      final p1 = _currentStroke!.points.first;
+      final p2 = _currentStroke!.points.last;
+      final dist = (p2 - p1).distance;
+
+      // Discard accidental 0-size micro taps (less than 5px on normalized canvas)
+      if ((_currentStroke!.tool == DrawingTool.shape || _currentStroke!.shapeType != null) && dist < 0.005) {
+        setState(() {
+          _currentStroke = null;
+        });
+        return;
+      }
+
       final wasShape = _selectedTool == DrawingTool.shape;
       final wasEraser = _selectedTool == DrawingTool.eraser;
       final strokeToPrune = _currentStroke;
