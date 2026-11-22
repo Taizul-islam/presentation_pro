@@ -1132,25 +1132,46 @@ class DrawingPainter extends CustomPainter {
 
   Path _createStarPath(Rect rect) {
     final path = Path();
-    final center = rect.center;
-    final rx = rect.width.abs() / 2;
-    final ry = rect.height.abs() / 2;
     const points = 5;
-    final innerRx = rx * 0.4;
-    final innerRy = ry * 0.4;
+    const double rawRx = 1.0;
+    const double rawRy = 1.0;
+    const double innerRx = rawRx * 0.4;
+    const double innerRy = rawRy * 0.4;
 
+    final List<Offset> rawPoints = [];
     for (int i = 0; i < points * 2; i++) {
       final angle = (i * math.pi / points) - (math.pi / 2);
-      final rX = i.isEven ? rx : innerRx;
-      final rY = i.isEven ? ry : innerRy;
-      final x = center.dx + rX * math.cos(angle);
-      final y = center.dy + rY * math.sin(angle);
+      final rX = i.isEven ? rawRx : innerRx;
+      final rY = i.isEven ? rawRy : innerRy;
+      rawPoints.add(Offset(rX * math.cos(angle), rY * math.sin(angle)));
+    }
+
+    double minX = rawPoints[0].dx;
+    double maxX = rawPoints[0].dx;
+    double minY = rawPoints[0].dy;
+    double maxY = rawPoints[0].dy;
+
+    for (final p in rawPoints) {
+      if (p.dx < minX) minX = p.dx;
+      if (p.dx > maxX) maxX = p.dx;
+      if (p.dy < minY) minY = p.dy;
+      if (p.dy > maxY) maxY = p.dy;
+    }
+
+    final double rawWidth = maxX - minX;
+    final double rawHeight = maxY - minY;
+
+    for (int i = 0; i < rawPoints.length; i++) {
+      final p = rawPoints[i];
+      final nx = rect.left + ((p.dx - minX) / rawWidth) * rect.width;
+      final ny = rect.top + ((p.dy - minY) / rawHeight) * rect.height;
       if (i == 0) {
-        path.moveTo(x, y);
+        path.moveTo(nx, ny);
       } else {
-        path.lineTo(x, y);
+        path.lineTo(nx, ny);
       }
     }
+
     path.close();
     return path;
   }
