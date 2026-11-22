@@ -469,32 +469,51 @@ class _ThumbnailPainter extends CustomPainter {
   }
 
   void _drawArrowLineThumbnail(Canvas canvas, Offset p1, Offset p2, Paint paint) {
-    canvas.drawLine(p1, p2, paint);
+    final dist = (p2 - p1).distance;
+    if (dist < 0.5) return;
+
     final angle = math.atan2(p2.dy - p1.dy, p2.dx - p1.dx);
-    const arrowSize = 6.0;
+    final arrowLength = math.max(6.0, math.min(dist * 0.4, paint.strokeWidth * 3.5));
+    const arrowAngle = math.pi / 7.0;
+
+    final lineEnd = Offset(
+      p2.dx - (arrowLength * 0.6) * math.cos(angle),
+      p2.dy - (arrowLength * 0.6) * math.sin(angle),
+    );
+    canvas.drawLine(p1, lineEnd, paint);
 
     final arrowPath = Path()
       ..moveTo(p2.dx, p2.dy)
       ..lineTo(
-        p2.dx - arrowSize * math.cos(angle - math.pi / 6),
-        p2.dy - arrowSize * math.sin(angle - math.pi / 6),
+        p2.dx - arrowLength * math.cos(angle - arrowAngle),
+        p2.dy - arrowLength * math.sin(angle - arrowAngle),
       )
       ..lineTo(
-        p2.dx - arrowSize * math.cos(angle + math.pi / 6),
-        p2.dy - arrowSize * math.sin(angle + math.pi / 6),
+        p2.dx - (arrowLength * 0.75) * math.cos(angle),
+        p2.dy - (arrowLength * 0.75) * math.sin(angle),
+      )
+      ..lineTo(
+        p2.dx - arrowLength * math.cos(angle + arrowAngle),
+        p2.dy - arrowLength * math.sin(angle + arrowAngle),
       )
       ..close();
 
     final fillHead = Paint()
       ..color = paint.color
-      ..style = PaintingStyle.fill;
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
     canvas.drawPath(arrowPath, fillHead);
   }
 
   void _drawCoordinateAxesThumbnail(Canvas canvas, Rect rect, Paint paint) {
-    final origin = Offset(rect.left + 6, rect.bottom - 6);
+    final origin = Offset(rect.left + 5, rect.bottom - 5);
     _drawArrowLineThumbnail(canvas, origin, Offset(rect.right, origin.dy), paint);
     _drawArrowLineThumbnail(canvas, origin, Offset(origin.dx, rect.top), paint);
+
+    final dotPaint = Paint()
+      ..color = paint.color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(origin, math.max(1.5, paint.strokeWidth * 0.8), dotPaint);
   }
 
   void _draw3DCubeThumbnail(Canvas canvas, Rect rect, Paint strokePaint, Paint? fillPaint) {

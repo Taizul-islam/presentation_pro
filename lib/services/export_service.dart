@@ -261,6 +261,11 @@ class ExportService {
       for (final stroke in page.strokes) {
         if (stroke.points.length < 2) continue;
 
+        if (stroke.tool == DrawingTool.shape || stroke.shapeType != null) {
+          _drawShapeExport(canvas, stroke, targetWidth, targetHeight);
+          continue;
+        }
+
         if (stroke.tool == DrawingTool.eraser &&
             (stroke.dusterType == DusterType.feltBlock || stroke.dusterType == DusterType.sponge)) {
           _drawDirectionalBlockEraserExport(canvas, stroke, targetWidth, targetHeight);
@@ -447,5 +452,178 @@ class ExportService {
         canvas.restore();
       }
     }
+  }
+
+  static void _drawShapeExport(Canvas canvas, DrawingStroke stroke, double targetWidth, double targetHeight) {
+    if (stroke.points.length < 2) return;
+    final p1 = Offset(stroke.points.first.dx * targetWidth, stroke.points.first.dy * targetHeight);
+    final p2 = Offset(stroke.points.last.dx * targetWidth, stroke.points.last.dy * targetHeight);
+    final rect = Rect.fromPoints(p1, p2);
+
+    final double scaleFactor = targetWidth / 1920.0;
+    final strokePaint = Paint()
+      ..color = stroke.color
+      ..strokeWidth = stroke.width * scaleFactor
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    Paint? fillPaint;
+    if (stroke.fillColor != null && stroke.fillColor != Colors.transparent) {
+      fillPaint = Paint()
+        ..color = stroke.fillColor!
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true;
+    }
+
+    final shape = stroke.shapeType ?? ShapeType.rectangle;
+
+    switch (shape) {
+      case ShapeType.rectangle:
+        if (fillPaint != null) canvas.drawRect(rect, fillPaint);
+        canvas.drawRect(rect, strokePaint);
+        break;
+
+      case ShapeType.circle:
+        if (fillPaint != null) canvas.drawOval(rect, fillPaint);
+        canvas.drawOval(rect, strokePaint);
+        break;
+
+      case ShapeType.triangle:
+        final path = Path()
+          ..moveTo(rect.center.dx, rect.top)
+          ..lineTo(rect.right, rect.bottom)
+          ..lineTo(rect.left, rect.bottom)
+          ..close();
+        if (fillPaint != null) canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, strokePaint);
+        break;
+
+      case ShapeType.diamond:
+        final path = Path()
+          ..moveTo(rect.center.dx, rect.top)
+          ..lineTo(rect.right, rect.center.dy)
+          ..lineTo(rect.center.dx, rect.bottom)
+          ..lineTo(rect.left, rect.center.dy)
+          ..close();
+        if (fillPaint != null) canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, strokePaint);
+        break;
+
+      case ShapeType.star:
+        final path = _createStarPathExport(rect);
+        if (fillPaint != null) canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, strokePaint);
+        break;
+
+      case ShapeType.line:
+        canvas.drawLine(p1, p2, strokePaint);
+        break;
+
+      case ShapeType.arrow:
+        _drawArrowLineExport(canvas, p1, p2, strokePaint);
+        break;
+
+      case ShapeType.coordinateAxes:
+        _drawCoordinateAxesExport(canvas, rect, strokePaint);
+        break;
+
+      case ShapeType.cube:
+        _draw3DCubeExport(canvas, rect, strokePaint, fillPaint);
+        break;
+    }
+  }
+
+  static Path _createStarPathExport(Rect rect) {
+    final path = Path();
+    final center = rect.center;
+    final rx = rect.width.abs() / 2;
+    final ry = rect.height.abs() / 2;
+    const points = 5;
+    final innerRx = rx * 0.4;
+    final innerRy = ry * 0.4;
+
+    for (int i = 0; i < points * 2; i++) {
+      final angle = (i * math.pi / points) - (math.pi / 2);
+      final rX = i.isEven ? rx : innerRx;
+      final rY = i.isEven ? ry : innerRy;
+      final x = center.dx + rX * math.cos(angle);
+      final y = center.dy + rY * math.sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    return path;
+  }
+
+  static void _drawArrowLineExport(Canvas canvas, Offset p1, Offset p2, Paint paint) {
+    final dist = (p2 - p1).distance;
+    if (dist < 1.0) return;
+
+    final angle = math.atan2(p2.dy - p1.dy, p2.dx - p1.dx);
+    final arrowLength = math.max(12.0, math.min(dist * 0.4, paint.strokeWidth * 3.8));
+    const arrowAngle = math.pi / 7.0;
+
+    final lineEnd = Offset(
+      p2.dx - (arrowLength * 0.6) * math.cos(angle),
+      p2.dy - (arrowLength * 0.6) * math.sin(angle),
+    );
+    canvas.drawLine(p1, lineEnd, paint);
+
+    final arrowPath = Path()
+      ..moveTo(p2.dx, p2.dy)
+      ..lineTo(
+        p2.dx - arrowLength * math.cos(angle - arrowAngle),
+        p2.dy - arrowLength * math.sin(angle - arrowAngle),
+      )
+      ..lineTo(
+        p2.dx - (arrowLength * 0.75) * math.cos(angle),
+        p2.dy - (arrowLength * 0.75) * math.sin(angle),
+      )
+      ..lineTo(
+        p2.dx - arrowLength * math.cos(angle + arrowAngle),
+        p2.dy - arrowLength * math.sin(angle + arrowAngle),
+      )
+      ..close();
+
+    final fillHead = Paint()
+      ..color = paint.color
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    canvas.drawPath(arrowPath, fillHead);
+  }
+
+  static void _drawCoordinateAxesExport(Canvas canvas, Rect rect, Paint paint) {
+    final origin = Offset(rect.left + 24, rect.bottom - 24);
+    _drawArrowLineExport(canvas, origin, Offset(rect.right, origin.dy), paint);
+    _drawArrowLineExport(canvas, origin, Offset(origin.dx, rect.top), paint);
+
+    final dotPaint = Paint()
+      ..color = paint.color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(origin, math.max(2.5, paint.strokeWidth * 0.8), dotPaint);
+  }
+
+  static void _draw3DCubeExport(Canvas canvas, Rect rect, Paint strokePaint, Paint? fillPaint) {
+    final d = rect.width.abs() * 0.25;
+    final front = Rect.fromLTWH(rect.left, rect.top + d, rect.width.abs() - d, rect.height.abs() - d);
+    final back = Rect.fromLTWH(rect.left + d, rect.top, rect.width.abs() - d, rect.height.abs() - d);
+
+    if (fillPaint != null) {
+      canvas.drawRect(front, fillPaint);
+      canvas.drawRect(back, fillPaint);
+    }
+
+    canvas.drawRect(front, strokePaint);
+    canvas.drawRect(back, strokePaint);
+
+    canvas.drawLine(front.topLeft, back.topLeft, strokePaint);
+    canvas.drawLine(front.topRight, back.topRight, strokePaint);
+    canvas.drawLine(front.bottomLeft, back.bottomLeft, strokePaint);
+    canvas.drawLine(front.bottomRight, back.bottomRight, strokePaint);
   }
 }
