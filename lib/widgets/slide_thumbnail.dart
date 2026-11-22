@@ -506,14 +506,9 @@ class _ThumbnailPainter extends CustomPainter {
   }
 
   void _drawCoordinateAxesThumbnail(Canvas canvas, Rect rect, Paint paint) {
-    final origin = Offset(rect.left + 5, rect.bottom - 5);
+    final origin = Offset(rect.left, rect.bottom);
     _drawArrowLineThumbnail(canvas, origin, Offset(rect.right, origin.dy), paint);
     _drawArrowLineThumbnail(canvas, origin, Offset(origin.dx, rect.top), paint);
-
-    final dotPaint = Paint()
-      ..color = paint.color
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(origin, math.max(1.5, paint.strokeWidth * 0.8), dotPaint);
   }
 
   void _draw3DCubeThumbnail(Canvas canvas, Rect rect, Paint strokePaint, Paint? fillPaint) {

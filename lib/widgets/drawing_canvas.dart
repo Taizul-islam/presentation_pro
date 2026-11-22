@@ -1193,16 +1193,11 @@ class DrawingPainter extends CustomPainter {
   }
 
   void _drawCoordinateAxes(Canvas canvas, Rect rect, Paint paint) {
-    final origin = Offset(rect.left + 24, rect.bottom - 24);
+    final origin = Offset(rect.left, rect.bottom);
     // X-Axis
     _drawArrowLine(canvas, origin, Offset(rect.right, origin.dy), paint);
     // Y-Axis
     _drawArrowLine(canvas, origin, Offset(origin.dx, rect.top), paint);
-
-    final dotPaint = Paint()
-      ..color = paint.color
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(origin, math.max(2.5, paint.strokeWidth * 0.8), dotPaint);
   }
 
   void _draw3DCube(Canvas canvas, Rect rect, Paint strokePaint, Paint? fillPaint) {

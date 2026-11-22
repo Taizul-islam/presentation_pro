@@ -598,14 +598,9 @@ class ExportService {
   }
 
   static void _drawCoordinateAxesExport(Canvas canvas, Rect rect, Paint paint) {
-    final origin = Offset(rect.left + 24, rect.bottom - 24);
+    final origin = Offset(rect.left, rect.bottom);
     _drawArrowLineExport(canvas, origin, Offset(rect.right, origin.dy), paint);
     _drawArrowLineExport(canvas, origin, Offset(origin.dx, rect.top), paint);
-
-    final dotPaint = Paint()
-      ..color = paint.color
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(origin, math.max(2.5, paint.strokeWidth * 0.8), dotPaint);
   }
 
   static void _draw3DCubeExport(Canvas canvas, Rect rect, Paint strokePaint, Paint? fillPaint) {
