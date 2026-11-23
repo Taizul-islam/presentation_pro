@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:window_manager/window_manager.dart';
 import '../models/drawing_stroke.dart';
@@ -490,12 +491,39 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   // --- Document Loading Methods ---
 
+  Future<String?> _getInitialFilePickerDirectory() async {
+    try {
+      final downloadsDir = await getDownloadsDirectory();
+      if (downloadsDir != null && await downloadsDir.exists()) {
+        return downloadsDir.path;
+      }
+    } catch (e) {
+      debugPrint('Error getting downloads directory: $e');
+    }
+
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final homePath = docsDir.parent.path;
+      final desktopPath = '$homePath/Desktop';
+      if (await Directory(desktopPath).exists()) {
+        return desktopPath;
+      }
+    } catch (e) {
+      debugPrint('Error getting desktop directory: $e');
+    }
+
+    return null;
+  }
+
   Future<void> _pickDocument() async {
     try {
+      final initialDir = await _getInitialFilePickerDirectory();
+
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'pptx'],
         allowMultiple: true,
+        initialDirectory: initialDir,
       );
 
       if (result == null || result.files.isEmpty) return;
