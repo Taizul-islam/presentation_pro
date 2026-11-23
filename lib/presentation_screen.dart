@@ -56,6 +56,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   double _strokeWidth = 4.0;
   double _eraserWidth = 30.0;
   DrawingTool _selectedTool = DrawingTool.pen;
+  bool _isSubToolbarExpanded = true;
   DusterType _selectedDusterType = DusterType.feltBlock;
   DusterOrientation _selectedDusterOrientation = DusterOrientation.rightHand;
   HandwritingLanguage _selectedHandwritingLang = HandwritingLanguage.english;
@@ -1103,7 +1104,7 @@ $stackString
               bottom: 0,
               child: _buildBottomLeftMenu(),
             ),
-          if (_isDrawingMode && _selectedTool == DrawingTool.eraser)
+          if (_isDrawingMode && _isSubToolbarExpanded && _selectedTool == DrawingTool.eraser)
             Positioned(
               left: 0,
               right: 0,
@@ -1124,6 +1125,7 @@ $stackString
               ),
             ),
           if (_isDrawingMode &&
+              _isSubToolbarExpanded &&
               (_selectedTool == DrawingTool.pen ||
                   _selectedTool == DrawingTool.highlighter ||
                   _selectedTool == DrawingTool.shape))
@@ -1147,7 +1149,7 @@ $stackString
                 ),
               ),
             ),
-          if (_isDrawingMode && _selectedTool == DrawingTool.shape)
+          if (_isDrawingMode && _isSubToolbarExpanded && _selectedTool == DrawingTool.shape)
             Positioned(
               left: 0,
               right: 0,
@@ -1163,7 +1165,7 @@ $stackString
                 ),
               ),
             ),
-          if (_isDrawingMode && _selectedTool == DrawingTool.handwriting)
+          if (_isDrawingMode && _isSubToolbarExpanded && _selectedTool == DrawingTool.handwriting)
             Positioned(
               left: 0,
               right: 0,
@@ -1181,7 +1183,7 @@ $stackString
                 ),
               ),
             ),
-          if (_isDrawingMode && _selectedTool == DrawingTool.laserPointer)
+          if (_isDrawingMode && _isSubToolbarExpanded && _selectedTool == DrawingTool.laserPointer)
             Positioned(
               left: 0,
               right: 0,
@@ -1547,6 +1549,7 @@ $stackString
         }
 
         final bool hasActiveSubToolbar = _isDrawingMode &&
+            _isSubToolbarExpanded &&
             (_selectedTool == DrawingTool.pen ||
                 _selectedTool == DrawingTool.highlighter ||
                 _selectedTool == DrawingTool.shape ||
@@ -1901,21 +1904,76 @@ $stackString
     }
   }
 
+  bool _hasSubToolbarOptions(DrawingTool tool) {
+    return tool == DrawingTool.pen ||
+        tool == DrawingTool.highlighter ||
+        tool == DrawingTool.eraser ||
+        tool == DrawingTool.shape ||
+        tool == DrawingTool.laserPointer;
+  }
+
   Widget _buildToolbarIcon(IconData icon, DrawingTool? tool, bool isSelected) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return IconButton(
-      icon: Icon(
-        icon,
-        color: isSelected
-            ? (isDark ? Colors.indigoAccent : Colors.indigo)
-            : (isDark ? Colors.white : Colors.grey.shade700),
-      ),
-      onPressed: tool == null
-          ? null
-          : () {
-        _cleanupEmptyTexts();
-        setState(() => _selectedTool = tool);
-      },
+    final hasOptions = tool != null && _hasSubToolbarOptions(tool);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          icon: Icon(
+            icon,
+            color: isSelected
+                ? (isDark ? Colors.indigoAccent : Colors.indigo)
+                : (isDark ? Colors.white : Colors.grey.shade700),
+          ),
+          onPressed: tool == null
+              ? null
+              : () {
+                  _cleanupEmptyTexts();
+                  if (_selectedTool == tool && hasOptions) {
+                    setState(() => _isSubToolbarExpanded = !_isSubToolbarExpanded);
+                  } else {
+                    setState(() {
+                      _selectedTool = tool;
+                      _isSubToolbarExpanded = true;
+                    });
+                  }
+                },
+        ),
+        if (isSelected && hasOptions)
+          Positioned(
+            top: -10,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => _isSubToolbarExpanded = !_isSubToolbarExpanded);
+                },
+                child: Container(
+                  width: 18,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                      width: 1,
+                    ),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 3)],
+                  ),
+                  child: Icon(
+                    _isSubToolbarExpanded
+                        ? Icons.keyboard_arrow_down
+                        : Icons.keyboard_arrow_up,
+                    size: 12,
+                    color: isDark ? Colors.indigoAccent : Colors.indigo,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
