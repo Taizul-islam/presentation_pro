@@ -1869,15 +1869,19 @@ $stackString
   }
 
   void _showDrawingColorPicker() async {
+    final previousTool = _selectedTool;
     final newColor = await SmartColorPickerDialog.show(
       context: context,
       initialColor: _selectedColor,
       title: 'Drawing Color',
       icon: Icons.palette_outlined,
     );
-    if (newColor != null) {
-      setState(() => _selectedColor = newColor);
-    }
+    setState(() {
+      if (newColor != null) {
+        _selectedColor = newColor;
+      }
+      _selectedTool = previousTool;
+    });
   }
 
   void _cleanupEmptyTexts() {
@@ -2990,6 +2994,7 @@ $stackString
   }
 
   void _showBackgroundColorPicker() async {
+    final previousTool = _selectedTool;
     final currentPage = _pages[_currentPageIndex];
     final isBlankSlide =
         currentPage.contentPath == null || currentPage.contentPath!.isEmpty;
@@ -3009,15 +3014,16 @@ $stackString
       icon: Icons.format_color_fill_outlined,
     );
 
-    if (newColor != null) {
-      setState(() {
+    setState(() {
+      if (newColor != null) {
         final updatedPage = _pages[_currentPageIndex].copyWith(
           backgroundColor: newColor,
         );
         _pages[_currentPageIndex] = updatedPage;
         _pages = List.from(_pages);
-      });
-    }
+      }
+      _selectedTool = previousTool;
+    });
   }
 
   String _generateExportFileName() {
