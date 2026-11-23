@@ -1546,10 +1546,19 @@ $stackString
           );
         }
 
+        final bool hasActiveSubToolbar = _isDrawingMode &&
+            (_selectedTool == DrawingTool.pen ||
+                _selectedTool == DrawingTool.highlighter ||
+                _selectedTool == DrawingTool.shape ||
+                _selectedTool == DrawingTool.eraser ||
+                _selectedTool == DrawingTool.handwriting ||
+                _selectedTool == DrawingTool.laserPointer);
+        final double bottomPadding = hasActiveSubToolbar ? 135.0 : 85.0;
+
         return Center(
           child: Padding(
             padding:
-            const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 90),
+            EdgeInsets.only(left: 20, right: 20, top: 20, bottom: bottomPadding),
             child: AspectRatio(
               aspectRatio: page.aspectRatio ?? 16 / 9,
               child: Container(
