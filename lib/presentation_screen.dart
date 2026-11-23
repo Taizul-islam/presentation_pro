@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -57,6 +58,18 @@ class _PresentationScreenState extends State<PresentationScreen>
   double _eraserWidth = 30.0;
   DrawingTool _selectedTool = DrawingTool.pen;
   bool _isSubToolbarExpanded = true;
+  Timer? _subToolbarAutoCollapseTimer;
+
+  void _resetSubToolbarAutoCollapseTimer() {
+    _subToolbarAutoCollapseTimer?.cancel();
+    if (_isDrawingMode && _isSubToolbarExpanded && _hasSubToolbarOptions(_selectedTool)) {
+      _subToolbarAutoCollapseTimer = Timer(const Duration(seconds: 8), () {
+        if (mounted) {
+          setState(() => _isSubToolbarExpanded = false);
+        }
+      });
+    }
+  }
   DusterType _selectedDusterType = DusterType.feltBlock;
   DusterOrientation _selectedDusterOrientation = DusterOrientation.rightHand;
   HandwritingLanguage _selectedHandwritingLang = HandwritingLanguage.english;
@@ -218,6 +231,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   }
 
   void _startStroke(Offset position) {
+    _resetSubToolbarAutoCollapseTimer();
     setState(() {
       _currentStroke = DrawingStroke(
         points: [position],
@@ -1924,11 +1938,15 @@ $stackString
               : () {
                   _cleanupEmptyTexts();
                   if (_selectedTool == tool && hasOptions) {
-                    setState(() => _isSubToolbarExpanded = !_isSubToolbarExpanded);
+                    setState(() {
+                      _isSubToolbarExpanded = !_isSubToolbarExpanded;
+                      _resetSubToolbarAutoCollapseTimer();
+                    });
                   } else {
                     setState(() {
                       _selectedTool = tool;
                       _isSubToolbarExpanded = true;
+                      _resetSubToolbarAutoCollapseTimer();
                     });
                   }
                 },
@@ -1941,7 +1959,10 @@ $stackString
             child: Center(
               child: GestureDetector(
                 onTap: () {
-                  setState(() => _isSubToolbarExpanded = !_isSubToolbarExpanded);
+                  setState(() {
+                    _isSubToolbarExpanded = !_isSubToolbarExpanded;
+                    _resetSubToolbarAutoCollapseTimer();
+                  });
                 },
                 child: Container(
                   width: 18,
