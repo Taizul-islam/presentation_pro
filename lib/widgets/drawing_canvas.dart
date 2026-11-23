@@ -553,7 +553,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       });
       _notifySelectionChanged();
     } else if (_selectionRect != null) {
-      if (_selectionRect!.width < 5 && _selectionRect!.height < 5) {
+      if (_selectedIndices.isEmpty || (_selectionRect!.width < 5 && _selectionRect!.height < 5)) {
         _clearSelection();
       } else {
         _notifySelectionChanged();
