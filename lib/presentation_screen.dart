@@ -1500,7 +1500,6 @@ $stackString
                       text.width * (slideWidth / 1920.0),
                       50,
                     );
-                    _selectedTool = DrawingTool.selector;
                   }),
                 );
               }),
