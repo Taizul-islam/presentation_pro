@@ -110,6 +110,23 @@ jobs:
             Write-Host "pdfium.dll already present"
           }
 
+      # ---------- Copy Visual C++ Runtime DLLs ----------
+      - name: Copy VC++ Runtime DLLs
+        shell: pwsh
+        run: |
+          $buildDir = "build\windows\x64\runner\Release"
+          $sys32 = "C:\Windows\System32"
+          $dlls = @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "vccorlib140.dll")
+          foreach ($dll in $dlls) {
+            $src = "$sys32\$dll"
+            if (Test-Path $src) {
+              Copy-Item $src -Destination $buildDir -Force
+              Write-Host "Copied $dll to release directory"
+            } else {
+              Write-Host "WARN: $dll not found in $sys32"
+            }
+          }
+
       # ---------- Verify ----------
       - name: Verify files
         shell: pwsh
@@ -132,6 +149,12 @@ jobs:
             exit 1
           }
           Write-Host "pdfium.dll: OK"
+
+          if (-not (Test-Path "$buildDir\vcruntime140_1.dll")) {
+            Write-Host "FAIL: vcruntime140_1.dll missing"
+            exit 1
+          }
+          Write-Host "vcruntime140_1.dll: OK"
 
           $soffice = Get-ChildItem "$buildDir\tools" -Recurse -Filter "soffice.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           $pdftoppm = Get-ChildItem "$buildDir\tools" -Recurse -Filter "pdftoppm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
