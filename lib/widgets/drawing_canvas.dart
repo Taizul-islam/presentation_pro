@@ -1382,47 +1382,19 @@ class DrawingPainter extends CustomPainter {
         break;
 
       case DusterType.handDuster:
-        // Ergonomic Open Hand Palm Duster Pad
+        // Minimalist transparent touch boundary for real physical hand/palm
         final double width = size * 1.6;
         final double height = size * 1.2;
         final rect = Rect.fromCenter(center: Offset.zero, width: width, height: height);
 
-        // Shadow
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect.shift(const Offset(2, 3)), const Radius.circular(16)),
-          Paint()
-            ..color = Colors.black26
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-        );
-
-        // Hand Duster Base (Warm Orange/Amber Hand Pad)
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(16)),
-          Paint()..color = Colors.orange.shade800,
-        );
-
-        // Inner Palm Cushion Layer
-        final innerRect = rect.deflate(3);
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(innerRect, const Radius.circular(13)),
-          Paint()..color = Colors.amber.shade100,
-        );
-
-        // Hand Palm Line Accents
-        final palmPaint = Paint()
-          ..color = Colors.orange.shade900
+        // Soft subtle touch outline
+        final touchOutlinePaint = Paint()
+          ..color = Colors.orange.shade700.withOpacity(0.4)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5;
-        canvas.drawLine(Offset(-width * 0.2, -height * 0.1), Offset(width * 0.2, height * 0.1), palmPaint);
-        canvas.drawLine(Offset(-width * 0.25, height * 0.15), Offset(width * 0.15, height * 0.25), palmPaint);
-
-        // Outer Border
         canvas.drawRRect(
           RRect.fromRectAndRadius(rect, const Radius.circular(16)),
-          Paint()
-            ..color = Colors.amber.shade900
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.8,
+          touchOutlinePaint,
         );
         break;
 
