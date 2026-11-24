@@ -70,7 +70,7 @@ class _PresentationScreenState extends State<PresentationScreen>
       });
     }
   }
-  DusterType _selectedDusterType = DusterType.feltBlock;
+  DusterType _selectedDusterType = DusterType.handDuster;
   DusterOrientation _selectedDusterOrientation = DusterOrientation.rightHand;
   HandwritingLanguage _selectedHandwritingLang = HandwritingLanguage.english;
   LaserMode _selectedLaserMode = LaserMode.laserDot;

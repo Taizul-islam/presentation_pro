@@ -57,6 +57,16 @@ class RealDusterToolbar extends StatelessWidget {
               Expanded(
                 child: _buildSegmentButton(
                   context: context,
+                  type: DusterType.handDuster,
+                  label: 'Hand Duster',
+                  icon: Icons.back_hand_outlined,
+                  activeColor: Colors.orange.shade800,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: _buildSegmentButton(
+                  context: context,
                   type: DusterType.feltBlock,
                   label: 'Felt Duster',
                   icon: Icons.rectangle_outlined,
@@ -71,16 +81,6 @@ class RealDusterToolbar extends StatelessWidget {
                   label: 'Sponge',
                   icon: Icons.blur_circular,
                   activeColor: Colors.teal.shade700,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: _buildSegmentButton(
-                  context: context,
-                  type: DusterType.handDuster,
-                  label: 'Hand Duster',
-                  icon: Icons.back_hand_outlined,
-                  activeColor: Colors.orange.shade800,
                 ),
               ),
               const SizedBox(width: 4),
