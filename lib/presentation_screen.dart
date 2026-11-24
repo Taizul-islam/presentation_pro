@@ -1051,46 +1051,51 @@ $stackString
                     ? const SizedBox.shrink()
                     : _buildSidebar(),
               ),
-              if (_isDrawingMode && _currentMode != AppMode.teaching)
-                GestureDetector(
-                  onTap: () => setState(
-                          () => _isSidebarCollapsed = !_isSidebarCollapsed),
-                  child: Container(
-                    width: 20,
-                    height: 52,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-                      borderRadius: const BorderRadius.horizontal(
-                          right: Radius.circular(10)),
-                      border: Border(
-                        top: BorderSide(
-                            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                        right: BorderSide(
-                            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                        bottom: BorderSide(
-                            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 6,
-                          offset: Offset(2, 0),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      _isSidebarCollapsed
-                          ? Icons.chevron_right
-                          : Icons.chevron_left,
-                      size: 16,
-                      color: isDark ? Colors.white70 : Colors.grey.shade700,
-                    ),
-                  ),
-                ),
               Expanded(child: _buildContentPage()),
             ],
           ),
+          if (_isDrawingMode && _currentMode != AppMode.teaching)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              left: _isSidebarCollapsed ? 0 : 180,
+              top: (MediaQuery.of(context).size.height / 2) - 26,
+              child: GestureDetector(
+                onTap: () => setState(
+                    () => _isSidebarCollapsed = !_isSidebarCollapsed),
+                child: Container(
+                  width: 20,
+                  height: 52,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+                    borderRadius: const BorderRadius.horizontal(
+                        right: Radius.circular(10)),
+                    border: Border(
+                      top: BorderSide(
+                          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                      right: BorderSide(
+                          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                      bottom: BorderSide(
+                          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 6,
+                        offset: Offset(2, 0),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    _isSidebarCollapsed
+                        ? Icons.chevron_right
+                        : Icons.chevron_left,
+                    size: 16,
+                    color: isDark ? Colors.white70 : Colors.grey.shade700,
+                  ),
+                ),
+              ),
+            ),
           if (_isDrawingMode && _isMenuVisible)
             Positioned.fill(
               child: GestureDetector(
