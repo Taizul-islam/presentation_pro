@@ -1674,17 +1674,43 @@ $stackString
           ),
         ),
       ),
-      child: ListView.builder(
-        controller: _sidebarScrollController,
+      child: ReorderableListView.builder(
+        scrollController: _sidebarScrollController,
         itemCount: _pages.length,
+        onReorder: (oldIndex, newIndex) {
+          setState(() {
+            _saveToHistory();
+            if (newIndex > oldIndex) {
+              newIndex -= 1;
+            }
+            final PresentationPage movedPage = _pages.removeAt(oldIndex);
+            _pages.insert(newIndex, movedPage);
+
+            _reindexPageNumbers();
+
+            if (_currentPageIndex == oldIndex) {
+              _currentPageIndex = newIndex;
+            } else if (oldIndex < _currentPageIndex && newIndex >= _currentPageIndex) {
+              _currentPageIndex -= 1;
+            } else if (oldIndex > _currentPageIndex && newIndex <= _currentPageIndex) {
+              _currentPageIndex += 1;
+            }
+          });
+          if (_pageController.hasClients) {
+            _pageController.jumpToPage(_currentPageIndex);
+          }
+        },
         itemBuilder: (context, index) {
           final isCurrent = _currentPageIndex == index;
-          return SlideThumbnail(
-            page: _pages[index],
-            currentStroke: isCurrent ? _currentStroke : null,
-            isSelected: isCurrent,
-            onTap: () => _goToPage(index),
-            pdfDocument: _currentPdfDocument,
+          return Container(
+            key: ValueKey('slide_${_pages[index].pageNumber}_$index'),
+            child: SlideThumbnail(
+              page: _pages[index],
+              currentStroke: isCurrent ? _currentStroke : null,
+              isSelected: isCurrent,
+              onTap: () => _goToPage(index),
+              pdfDocument: _currentPdfDocument,
+            ),
           );
         },
       ),
@@ -2859,15 +2885,41 @@ $stackString
         curve: Curves.easeInOut);
   }
 
+  void _reindexPageNumbers() {
+    for (int i = 0; i < _pages.length; i++) {
+      _pages[i] = _pages[i].copyWith(
+        pageNumber: i + 1,
+        title: 'Blank Slide ${i + 1}',
+      );
+    }
+  }
+
   void _addNewSlide() {
+    final int newInsertIndex = _currentPageIndex + 1;
+    final newSlide = PresentationPage(
+      pageNumber: newInsertIndex + 1,
+      title: 'Blank Slide ${newInsertIndex + 1}',
+      subtitle: 'Start writing or annotate',
+      icon: Icons.note_add,
+      contentType: PageContentType.image,
+      contentPath: null,
+      backgroundColor: Colors.white,
+    );
+
     setState(() {
-      _pages.add(PresentationPage(
-        pageNumber: _pages.length + 1,
-        title: 'Slide ${_pages.length + 1}',
-        subtitle: 'New Slide',
-        icon: Icons.note_add,
-      ));
+      _saveToHistory();
+      if (newInsertIndex >= _pages.length) {
+        _pages.add(newSlide);
+      } else {
+        _pages.insert(newInsertIndex, newSlide);
+      }
+      _reindexPageNumbers();
+      _currentPageIndex = newInsertIndex;
     });
+
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(_currentPageIndex);
+    }
   }
 
   Future<void> _deleteCurrentSlide() async {

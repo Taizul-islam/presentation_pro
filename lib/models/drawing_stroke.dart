@@ -298,6 +298,10 @@ class PresentationPage {
   });
 
   PresentationPage copyWith({
+    int? pageNumber,
+    String? title,
+    String? subtitle,
+    IconData? icon,
     List<DrawingStroke>? strokes,
     List<DrawingText>? texts,
     PageContentType? contentType,
@@ -308,10 +312,10 @@ class PresentationPage {
     double? aspectRatio,
   }) {
     return PresentationPage(
-      pageNumber: pageNumber,
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
+      pageNumber: pageNumber ?? this.pageNumber,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      icon: icon ?? this.icon,
       strokes: strokes ?? this.strokes,
       texts: texts ?? this.texts,
       contentType: contentType ?? this.contentType,
