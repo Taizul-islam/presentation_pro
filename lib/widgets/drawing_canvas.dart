@@ -1382,20 +1382,7 @@ class DrawingPainter extends CustomPainter {
         break;
 
       case DusterType.handDuster:
-        // Minimalist transparent touch boundary for real physical hand/palm
-        final double width = size * 1.6;
-        final double height = size * 1.2;
-        final rect = Rect.fromCenter(center: Offset.zero, width: width, height: height);
-
-        // Soft subtle touch outline
-        final touchOutlinePaint = Paint()
-          ..color = Colors.orange.shade700.withOpacity(0.4)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5;
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(16)),
-          touchOutlinePaint,
-        );
+        // No graphic cursor drawn for real physical hand/palm
         break;
 
       case DusterType.precision:

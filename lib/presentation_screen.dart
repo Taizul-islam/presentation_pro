@@ -236,11 +236,17 @@ class _PresentationScreenState extends State<PresentationScreen>
 
   void _startStroke(Offset position) {
     _resetSubToolbarAutoCollapseTimer();
+    final double activeEraserWidth = _selectedTool == DrawingTool.eraser
+        ? (_selectedDusterType == DusterType.handDuster || _isHandDusterActive
+            ? 120.0
+            : _eraserWidth)
+        : _strokeWidth;
+
     setState(() {
       _currentStroke = DrawingStroke(
         points: [position],
         color: _selectedColor,
-        width: _selectedTool == DrawingTool.eraser ? _eraserWidth : _strokeWidth,
+        width: activeEraserWidth,
         tool: _selectedTool,
         dusterType: _selectedDusterType,
         strokeAngle: _currentDusterAngle,
