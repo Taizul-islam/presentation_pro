@@ -36,9 +36,10 @@ enum HandwritingLanguage {
 }
 
 enum DusterType {
-  feltBlock, // Classic 2:1 rectangular wooden/felt duster
-  sponge,    // Soft rounded microfiber sponge
-  precision, // Precision circular tip eraser
+  feltBlock,  // Classic 2:1 rectangular wooden/felt duster
+  sponge,     // Soft rounded microfiber sponge
+  handDuster, // Open hand palm duster
+  precision,  // Precision circular tip eraser
 }
 
 enum DusterOrientation {

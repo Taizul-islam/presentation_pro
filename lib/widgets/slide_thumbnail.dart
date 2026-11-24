@@ -303,7 +303,9 @@ class _ThumbnailPainter extends CustomPainter {
     }
 
     if (stroke.tool == DrawingTool.eraser &&
-        (stroke.dusterType == DusterType.feltBlock || stroke.dusterType == DusterType.sponge)) {
+        (stroke.dusterType == DusterType.feltBlock ||
+         stroke.dusterType == DusterType.sponge ||
+         stroke.dusterType == DusterType.handDuster)) {
       _drawDirectionalBlockEraserThumbnail(canvas, stroke, size);
       return;
     }
@@ -555,8 +557,15 @@ class _ThumbnailPainter extends CustomPainter {
     final double widthScale = size.width / 1920.0;
     final double baseWidth = stroke.width * widthScale * 3.0;
 
-    final double blockW = (stroke.dusterType == DusterType.feltBlock) ? baseWidth * 1.8 : baseWidth * 1.5;
-    final double blockH = (stroke.dusterType == DusterType.feltBlock) ? baseWidth * 0.9 : baseWidth * 1.0;
+    double blockW = baseWidth * 1.5;
+    double blockH = baseWidth * 1.0;
+    if (stroke.dusterType == DusterType.feltBlock) {
+      blockW = baseWidth * 1.8;
+      blockH = baseWidth * 0.9;
+    } else if (stroke.dusterType == DusterType.handDuster) {
+      blockW = baseWidth * 1.6;
+      blockH = baseWidth * 1.2;
+    }
     final paint = Paint()
       ..blendMode = BlendMode.clear
       ..style = PaintingStyle.fill;

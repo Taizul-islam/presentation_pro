@@ -267,7 +267,9 @@ class ExportService {
         }
 
         if (stroke.tool == DrawingTool.eraser &&
-            (stroke.dusterType == DusterType.feltBlock || stroke.dusterType == DusterType.sponge)) {
+            (stroke.dusterType == DusterType.feltBlock ||
+             stroke.dusterType == DusterType.sponge ||
+             stroke.dusterType == DusterType.handDuster)) {
           _drawDirectionalBlockEraserExport(canvas, stroke, targetWidth, targetHeight);
           continue;
         }
@@ -420,8 +422,15 @@ class ExportService {
     final double scaleFactor = targetWidth / 1920.0;
     final double baseWidth = stroke.width * scaleFactor;
 
-    final double blockW = (stroke.dusterType == DusterType.feltBlock) ? baseWidth * 1.8 : baseWidth * 1.5;
-    final double blockH = (stroke.dusterType == DusterType.feltBlock) ? baseWidth * 0.9 : baseWidth * 1.0;
+    double blockW = baseWidth * 1.5;
+    double blockH = baseWidth * 1.0;
+    if (stroke.dusterType == DusterType.feltBlock) {
+      blockW = baseWidth * 1.8;
+      blockH = baseWidth * 0.9;
+    } else if (stroke.dusterType == DusterType.handDuster) {
+      blockW = baseWidth * 1.6;
+      blockH = baseWidth * 1.2;
+    }
     final paint = Paint()
       ..blendMode = ui.BlendMode.clear
       ..style = PaintingStyle.fill;

@@ -1002,7 +1002,9 @@ class DrawingPainter extends CustomPainter {
     }
 
     if (stroke.tool == DrawingTool.eraser &&
-        (stroke.dusterType == DusterType.feltBlock || stroke.dusterType == DusterType.sponge)) {
+        (stroke.dusterType == DusterType.feltBlock ||
+         stroke.dusterType == DusterType.sponge ||
+         stroke.dusterType == DusterType.handDuster)) {
       _drawDirectionalBlockEraser(canvas, stroke);
       return;
     }
@@ -1241,8 +1243,16 @@ class DrawingPainter extends CustomPainter {
   }
 
   void _drawDirectionalBlockEraser(Canvas canvas, DrawingStroke stroke) {
-    final double blockW = (stroke.dusterType == DusterType.feltBlock) ? stroke.width * 1.8 : stroke.width * 1.5;
-    final double blockH = (stroke.dusterType == DusterType.feltBlock) ? stroke.width * 0.9 : stroke.width * 1.0;
+    double blockW = stroke.width * 1.5;
+    double blockH = stroke.width * 1.0;
+    if (stroke.dusterType == DusterType.feltBlock) {
+      blockW = stroke.width * 1.8;
+      blockH = stroke.width * 0.9;
+    } else if (stroke.dusterType == DusterType.handDuster) {
+      blockW = stroke.width * 1.6;
+      blockH = stroke.width * 1.2;
+    }
+
     final paint = Paint()
       ..blendMode = BlendMode.clear
       ..style = PaintingStyle.fill;
@@ -1278,7 +1288,7 @@ class DrawingPainter extends CustomPainter {
   void _drawDusterCursor(Canvas canvas, Offset center, double size, DusterType type, double angle) {
     canvas.save();
     canvas.translate(center.dx, center.dy);
-    if (type == DusterType.feltBlock || type == DusterType.sponge) {
+    if (type == DusterType.feltBlock || type == DusterType.sponge || type == DusterType.handDuster) {
       canvas.rotate(angle);
     }
 
@@ -1368,6 +1378,51 @@ class DrawingPainter extends CustomPainter {
             ..color = Colors.teal.shade800
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5,
+        );
+        break;
+
+      case DusterType.handDuster:
+        // Ergonomic Open Hand Palm Duster Pad
+        final double width = size * 1.6;
+        final double height = size * 1.2;
+        final rect = Rect.fromCenter(center: Offset.zero, width: width, height: height);
+
+        // Shadow
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect.shift(const Offset(2, 3)), const Radius.circular(16)),
+          Paint()
+            ..color = Colors.black26
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        );
+
+        // Hand Duster Base (Warm Orange/Amber Hand Pad)
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(16)),
+          Paint()..color = Colors.orange.shade800,
+        );
+
+        // Inner Palm Cushion Layer
+        final innerRect = rect.deflate(3);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(innerRect, const Radius.circular(13)),
+          Paint()..color = Colors.amber.shade100,
+        );
+
+        // Hand Palm Line Accents
+        final palmPaint = Paint()
+          ..color = Colors.orange.shade900
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5;
+        canvas.drawLine(Offset(-width * 0.2, -height * 0.1), Offset(width * 0.2, height * 0.1), palmPaint);
+        canvas.drawLine(Offset(-width * 0.25, height * 0.15), Offset(width * 0.15, height * 0.25), palmPaint);
+
+        // Outer Border
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(16)),
+          Paint()
+            ..color = Colors.amber.shade900
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.8,
         );
         break;
 
