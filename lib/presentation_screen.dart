@@ -1677,6 +1677,7 @@ $stackString
       child: ReorderableListView.builder(
         scrollController: _sidebarScrollController,
         itemCount: _pages.length,
+        buildDefaultDragHandles: false,
         onReorder: (oldIndex, newIndex) {
           setState(() {
             _saveToHistory();
@@ -1702,8 +1703,9 @@ $stackString
         },
         itemBuilder: (context, index) {
           final isCurrent = _currentPageIndex == index;
-          return Container(
+          return ReorderableDelayedDragStartListener(
             key: ValueKey('slide_${_pages[index].pageNumber}_$index'),
+            index: index,
             child: SlideThumbnail(
               page: _pages[index],
               currentStroke: isCurrent ? _currentStroke : null,
