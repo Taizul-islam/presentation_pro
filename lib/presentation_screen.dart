@@ -35,7 +35,7 @@ class PresentationScreen extends StatefulWidget {
 }
 
 class _PresentationScreenState extends State<PresentationScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WindowListener {
   bool _isDrawingMode = true;
   bool _isToolbarVisible = true;
   bool _isSidebarCollapsed = false;
@@ -105,6 +105,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
     _pageController = PageController(initialPage: _currentPageIndex);
     _transformationController = TransformationController();
     _transformationController.addListener(_onZoomChanged);
@@ -166,7 +167,22 @@ class _PresentationScreenState extends State<PresentationScreen>
   final FocusNode _keyboardFocusNode = FocusNode();
 
   @override
+  void onWindowEnterFullScreen() {
+    if (_currentMode != AppMode.teaching) {
+      _switchMode(AppMode.teaching);
+    }
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    if (_currentMode == AppMode.teaching) {
+      _switchMode(AppMode.preparation);
+    }
+  }
+
+  @override
   void dispose() {
+    windowManager.removeListener(this);
     _subToolbarAutoCollapseTimer?.cancel();
     _keyboardFocusNode.dispose();
     _transformationController.removeListener(_onZoomChanged);
