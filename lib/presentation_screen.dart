@@ -971,12 +971,6 @@ $errorString
 $stackString
 ''';
               Clipboard.setData(ClipboardData(text: fullReport));
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                const SnackBar(
-                  content: Text('Error report copied to clipboard'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
             },
           ),
           TextButton(
@@ -2995,47 +2989,7 @@ $stackString
   }
 
   void _showSnackBar(String message, Color color, IconData icon) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final Color snackBg = isDark
-        ? (color == Colors.red || color == Colors.red.shade700
-            ? const Color(0xFF3B1E2B)
-            : (color == Colors.orange || color == Colors.orange.shade800
-                ? const Color(0xFF3D2B1E)
-                : const Color(0xFF2A2A3C)))
-        : color;
-
-    final Color iconColor = isDark
-        ? (color == Colors.red || color == Colors.red.shade700
-            ? Colors.redAccent
-            : (color == Colors.orange || color == Colors.orange.shade800
-                ? Colors.orangeAccent
-                : (color == Colors.indigo ? Colors.indigoAccent : Colors.white)))
-        : Colors.white;
-
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(bottom: 70, left: 20, right: 20),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      content: Row(
-        children: [
-          Icon(icon, color: iconColor, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
-      ),
-      backgroundColor: snackBg,
-      elevation: 6,
-    ));
+    // Snackbars disabled app-wide
   }
 
   void _showBackgroundColorPicker() async {

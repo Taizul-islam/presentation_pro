@@ -261,19 +261,6 @@ class _SmartColorPickerDialogState extends State<SmartColorPickerDialog> {
     return InkWell(
       onTap: () {
         Clipboard.setData(ClipboardData(text: _hexString));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.only(bottom: 70, left: 20, right: 20),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            backgroundColor: isDark ? const Color(0xFF2A2A3C) : Colors.indigo,
-            content: Text(
-              'Color code $_hexString copied!',
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
-            ),
-            duration: const Duration(seconds: 1),
-          ),
-        );
       },
       borderRadius: BorderRadius.circular(8),
       child: Container(
