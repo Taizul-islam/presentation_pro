@@ -1106,7 +1106,7 @@ $stackString
             ),
           if (_isDrawingMode && _isMenuVisible)
             Positioned(
-              left: 5,
+              left: 0,
               bottom: 55,
               child: _buildVerticalMenu(),
             ),
