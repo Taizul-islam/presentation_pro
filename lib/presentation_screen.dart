@@ -1577,17 +1577,20 @@ $stackString
 
         return Container(
           color: slideBgColor,
-          child: InteractiveViewer(
-            transformationController: _transformationController,
-            minScale: 1.0,
-            maxScale: 5.0,
-            panEnabled: _selectedTool == DrawingTool.hand,
-            scaleEnabled: _selectedTool == DrawingTool.hand,
-            child: LayoutBuilder(
-              builder: (context, slideConstraints) {
-                return buildContent(
-                    slideConstraints.maxWidth, slideConstraints.maxHeight);
-              },
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 50),
+            child: InteractiveViewer(
+              transformationController: _transformationController,
+              minScale: 1.0,
+              maxScale: 5.0,
+              panEnabled: _selectedTool == DrawingTool.hand,
+              scaleEnabled: _selectedTool == DrawingTool.hand,
+              child: LayoutBuilder(
+                builder: (context, slideConstraints) {
+                  return buildContent(
+                      slideConstraints.maxWidth, slideConstraints.maxHeight);
+                },
+              ),
             ),
           ),
         );
