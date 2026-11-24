@@ -1682,6 +1682,7 @@ $stackString
       ),
       child: ReorderableListView.builder(
         scrollController: _sidebarScrollController,
+        padding: const EdgeInsets.only(top: 8, bottom: 65),
         itemCount: _pages.length,
         buildDefaultDragHandles: false,
         onReorder: (oldIndex, newIndex) {
