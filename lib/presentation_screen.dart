@@ -1425,7 +1425,6 @@ $stackString
     final hasDrawing = page.strokes.isNotEmpty ||
         page.texts.isNotEmpty ||
         (isCurrentPage && _currentStroke != null);
-    final isTeachingMode = _currentMode == AppMode.teaching;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1571,40 +1570,19 @@ $stackString
           );
         }
 
-        if (isTeachingMode) {
-          return Container(
-            color: slideBgColor,
-            child: buildContent(constraints.maxWidth, constraints.maxHeight),
-          );
-        }
-
-        return Center(
-          child: Padding(
-            padding:
-            const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 85),
-            child: AspectRatio(
-              aspectRatio: page.aspectRatio ?? 16 / 9,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: slideBgColor,
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 10)
-                  ],
-                ),
-                child: InteractiveViewer(
-                  transformationController: _transformationController,
-                  minScale: 1.0,
-                  maxScale: 5.0,
-                  panEnabled: _selectedTool == DrawingTool.hand,
-                  scaleEnabled: _selectedTool == DrawingTool.hand,
-                  child: LayoutBuilder(
-                    builder: (context, slideConstraints) {
-                      return buildContent(
-                          slideConstraints.maxWidth, slideConstraints.maxHeight);
-                    },
-                  ),
-                ),
-              ),
+        return Container(
+          color: slideBgColor,
+          child: InteractiveViewer(
+            transformationController: _transformationController,
+            minScale: 1.0,
+            maxScale: 5.0,
+            panEnabled: _selectedTool == DrawingTool.hand,
+            scaleEnabled: _selectedTool == DrawingTool.hand,
+            child: LayoutBuilder(
+              builder: (context, slideConstraints) {
+                return buildContent(
+                    slideConstraints.maxWidth, slideConstraints.maxHeight);
+              },
             ),
           ),
         );
