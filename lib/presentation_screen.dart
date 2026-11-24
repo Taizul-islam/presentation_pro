@@ -1703,7 +1703,7 @@ $stackString
         },
         itemBuilder: (context, index) {
           final isCurrent = _currentPageIndex == index;
-          return ReorderableDelayedDragStartListener(
+          return ReorderableDragStartListener(
             key: ValueKey('slide_${_pages[index].pageNumber}_$index'),
             index: index,
             child: SlideThumbnail(
