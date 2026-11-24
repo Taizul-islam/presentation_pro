@@ -163,8 +163,12 @@ class _PresentationScreenState extends State<PresentationScreen>
     }
   }
 
+  final FocusNode _keyboardFocusNode = FocusNode();
+
   @override
   void dispose() {
+    _subToolbarAutoCollapseTimer?.cancel();
+    _keyboardFocusNode.dispose();
     _transformationController.removeListener(_onZoomChanged);
     _transformationController.dispose();
     _currentPdfDocument?.dispose();
@@ -1128,12 +1132,18 @@ $stackString
                   selectedDusterType: _selectedDusterType,
                   selectedOrientation: _selectedDusterOrientation,
                   dusterSize: _eraserWidth,
-                  onDusterTypeChanged: (type) =>
-                      setState(() => _selectedDusterType = type),
-                  onOrientationChanged: (orientation) =>
-                      setState(() => _selectedDusterOrientation = orientation),
-                  onDusterSizeChanged: (size) =>
-                      setState(() => _eraserWidth = size),
+                  onDusterTypeChanged: (type) {
+                    _resetSubToolbarAutoCollapseTimer();
+                    setState(() => _selectedDusterType = type);
+                  },
+                  onOrientationChanged: (orientation) {
+                    _resetSubToolbarAutoCollapseTimer();
+                    setState(() => _selectedDusterOrientation = orientation);
+                  },
+                  onDusterSizeChanged: (size) {
+                    _resetSubToolbarAutoCollapseTimer();
+                    setState(() => _eraserWidth = size);
+                  },
                   onClearSlide: _clearStrokes,
                 ),
               ),
@@ -1153,8 +1163,10 @@ $stackString
                   child: StrokeWidthSlider(
                     strokeWidth: _strokeWidth,
                     selectedColor: _selectedColor,
-                    onStrokeWidthChanged: (width) =>
-                        setState(() => _strokeWidth = width),
+                    onStrokeWidthChanged: (width) {
+                      _resetSubToolbarAutoCollapseTimer();
+                      setState(() => _strokeWidth = width);
+                    },
                     onColorTap: _showDrawingColorPicker,
                     min: 1.0,
                     max: 15.0,
@@ -1172,10 +1184,14 @@ $stackString
                 child: ShapesToolbar(
                   selectedShape: _selectedShape,
                   fillColor: _shapeFillColor,
-                  onShapeChanged: (shape) =>
-                      setState(() => _selectedShape = shape),
-                  onFillColorChanged: (color) =>
-                      setState(() => _shapeFillColor = color),
+                  onShapeChanged: (shape) {
+                    _resetSubToolbarAutoCollapseTimer();
+                    setState(() => _selectedShape = shape);
+                  },
+                  onFillColorChanged: (color) {
+                    _resetSubToolbarAutoCollapseTimer();
+                    setState(() => _shapeFillColor = color);
+                  },
                 ),
               ),
             ),
@@ -1189,6 +1205,7 @@ $stackString
                   selectedLanguage: _selectedHandwritingLang,
                   recognizedText: _liveRecognizedText,
                   onLanguageChanged: (lang) {
+                    _resetSubToolbarAutoCollapseTimer();
                     setState(() => _selectedHandwritingLang = lang);
                     _updateHandwritingRecognition();
                   },
@@ -1207,12 +1224,18 @@ $stackString
                   selectedMode: _selectedLaserMode,
                   laserColor: _laserColor,
                   spotlightRadius: _spotlightRadius,
-                  onModeChanged: (mode) =>
-                      setState(() => _selectedLaserMode = mode),
-                  onColorChanged: (color) =>
-                      setState(() => _laserColor = color),
-                  onRadiusChanged: (radius) =>
-                      setState(() => _spotlightRadius = radius),
+                  onModeChanged: (mode) {
+                    _resetSubToolbarAutoCollapseTimer();
+                    setState(() => _selectedLaserMode = mode);
+                  },
+                  onColorChanged: (color) {
+                    _resetSubToolbarAutoCollapseTimer();
+                    setState(() => _laserColor = color);
+                  },
+                  onRadiusChanged: (radius) {
+                    _resetSubToolbarAutoCollapseTimer();
+                    setState(() => _spotlightRadius = radius);
+                  },
                 ),
               ),
             ),
@@ -2737,22 +2760,24 @@ $stackString
 
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
       if (mode == AppMode.teaching) {
-        await windowManager.maximize();
+        await windowManager.setFullScreen(true);
       } else if (mode == AppMode.preparation) {
+        await windowManager.setFullScreen(false);
         await windowManager.unmaximize();
       } else if (mode == AppMode.desktop) {
+        await windowManager.setFullScreen(false);
         await windowManager.minimize();
       }
     }
 
     _showSnackBar(
       mode == AppMode.teaching
-          ? 'Teaching Mode Activated'
+          ? 'Full Screen Teaching Mode Activated'
           : (mode == AppMode.desktop
               ? 'Desktop Mode Activated'
               : 'Preparation Mode Activated'),
       mode == AppMode.teaching ? Colors.indigo : Colors.grey.shade800,
-      Icons.monitor,
+      Icons.fullscreen,
     );
   }
 
