@@ -166,9 +166,9 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   }
 
   void _checkHandTouch(PointerEvent event) {
-    if (event.kind == PointerDeviceKind.touch) {
-      if (event.radiusMajor > 18.0 || event.radiusMinor > 16.0 || event.pressure > 0.75) {
-        final double handSize = (event.radiusMajor * 2.2).clamp(40.0, 150.0);
+    if (event.kind == PointerDeviceKind.touch || event.kind == PointerDeviceKind.stylus) {
+      if (event.radiusMajor > 14.0 || event.radiusMinor > 12.0 || event.pressure > 0.60) {
+        final double handSize = (event.radiusMajor * 2.8).clamp(110.0, 160.0);
         widget.onHandTouchDetected?.call(true, handSize);
       }
     }

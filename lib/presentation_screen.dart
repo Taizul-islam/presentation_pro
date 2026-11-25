@@ -80,7 +80,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   ShapeType _selectedShape = ShapeType.rectangle;
   Color? _shapeFillColor;
   String _liveRecognizedText = '';
-  bool _isAutoHandDusterEnabled = false;
+  bool _isAutoHandDusterEnabled = true;
   bool _isHandDusterActive = false;
   DrawingTool? _previousToolBeforeHandDuster;
   Offset? _hoverPosition;
@@ -194,17 +194,18 @@ class _PresentationScreenState extends State<PresentationScreen>
     if (!_isAutoHandDusterEnabled) return;
 
     if (isHand) {
+      final double handWidth = size.clamp(110.0, 160.0);
       if (!_isHandDusterActive) {
         _previousToolBeforeHandDuster = _selectedTool;
         setState(() {
           _isHandDusterActive = true;
           _selectedTool = DrawingTool.eraser;
-          _selectedDusterType = DusterType.feltBlock;
-          _eraserWidth = size;
+          _selectedDusterType = DusterType.handDuster;
+          _eraserWidth = handWidth;
         });
       } else {
         setState(() {
-          _eraserWidth = size;
+          _eraserWidth = handWidth;
         });
       }
     } else {
