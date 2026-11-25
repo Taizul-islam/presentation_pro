@@ -1735,27 +1735,12 @@ $stackString
                 top: 12,
                 child: ReorderableDragStartListener(
                   index: index,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF252536) : Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isCurrent
-                            ? (isDark ? Colors.indigoAccent : Colors.indigo)
-                            : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                      ),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black12, blurRadius: 4),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.drag_indicator,
-                      size: 14,
-                      color: isCurrent
-                          ? (isDark ? Colors.indigoAccent : Colors.indigo)
-                          : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                    ),
+                  child: Icon(
+                    Icons.drag_handle,
+                    size: 18,
+                    color: isCurrent
+                        ? (isDark ? Colors.indigoAccent : Colors.indigo)
+                        : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                   ),
                 ),
               ),
