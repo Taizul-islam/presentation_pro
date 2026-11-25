@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1680,11 +1681,20 @@ $stackString
           ),
         ),
       ),
-      child: ReorderableListView.builder(
-        scrollController: _sidebarScrollController,
-        padding: const EdgeInsets.only(top: 8, bottom: 65),
-        itemCount: _pages.length,
-        buildDefaultDragHandles: false,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+            PointerDeviceKind.stylus,
+          },
+        ),
+        child: ReorderableListView.builder(
+          scrollController: _sidebarScrollController,
+          padding: const EdgeInsets.only(top: 8, bottom: 65),
+          itemCount: _pages.length,
+          buildDefaultDragHandles: false,
         onReorder: (oldIndex, newIndex) {
           setState(() {
             _saveToHistory();
@@ -1710,19 +1720,50 @@ $stackString
         },
         itemBuilder: (context, index) {
           final isCurrent = _currentPageIndex == index;
-          return ReorderableDelayedDragStartListener(
+          return Stack(
             key: ValueKey('slide_${_pages[index].pageNumber}_$index'),
-            index: index,
-            child: SlideThumbnail(
-              page: _pages[index],
-              currentStroke: isCurrent ? _currentStroke : null,
-              isSelected: isCurrent,
-              onTap: () => _goToPage(index),
-              pdfDocument: _currentPdfDocument,
-            ),
+            children: [
+              SlideThumbnail(
+                page: _pages[index],
+                currentStroke: isCurrent ? _currentStroke : null,
+                isSelected: isCurrent,
+                onTap: () => _goToPage(index),
+                pdfDocument: _currentPdfDocument,
+              ),
+              Positioned(
+                right: 16,
+                top: 12,
+                child: ReorderableDragStartListener(
+                  index: index,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF252536) : Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isCurrent
+                            ? (isDark ? Colors.indigoAccent : Colors.indigo)
+                            : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 4),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.drag_indicator,
+                      size: 14,
+                      color: isCurrent
+                          ? (isDark ? Colors.indigoAccent : Colors.indigo)
+                          : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
+    ),
     );
   }
 
