@@ -70,6 +70,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   Rect? _selectionRect;
   List<int> _selectedIndices = [];
   final Set<int> _previouslyMovedIndices = {};
+  final Set<int> _activePointers = {};
   Offset? _dragStart;
   Offset? _currentDragOffset;
   bool _isMoving = false;
@@ -166,9 +167,13 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   }
 
   bool _checkHandTouch(PointerEvent event) {
+    if (_activePointers.length >= 2) {
+      widget.onHandTouchDetected?.call(true, 130.0);
+      return true;
+    }
     if (event.kind == PointerDeviceKind.touch || event.kind == PointerDeviceKind.stylus) {
-      if (event.radiusMajor > 14.0 || event.radiusMinor > 12.0 || event.pressure > 0.60) {
-        final double handSize = (event.radiusMajor * 2.8).clamp(110.0, 160.0);
+      if (event.radiusMajor > 6.0 || event.radiusMinor > 5.0 || event.pressure > 0.35) {
+        final double handSize = (event.radiusMajor > 0 ? event.radiusMajor * 2.8 : 120.0).clamp(110.0, 160.0);
         widget.onHandTouchDetected?.call(true, handSize);
         return true;
       }
@@ -199,6 +204,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             onPointerDown: (PointerDownEvent event) {
               if (widget.selectedTool == DrawingTool.hand) return;
               widget.onInteraction?.call();
+              _activePointers.add(event.pointer);
               final isHand = _checkHandTouch(event);
               final pos = event.localPosition;
               _lastPointerPos = pos;
@@ -244,6 +250,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             },
             onPointerUp: (PointerUpEvent event) {
               if (widget.selectedTool == DrawingTool.hand) return;
+              _activePointers.remove(event.pointer);
               _lastPointerPos = null;
               widget.onHandTouchDetected?.call(false, 0.0);
               if (widget.selectedTool == DrawingTool.selector ||
@@ -257,6 +264,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             },
             onPointerCancel: (PointerCancelEvent event) {
               if (widget.selectedTool == DrawingTool.hand) return;
+              _activePointers.remove(event.pointer);
               _lastPointerPos = null;
               widget.onHandTouchDetected?.call(false, 0.0);
               if (_isDrawing) {
