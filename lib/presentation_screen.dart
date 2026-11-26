@@ -578,7 +578,7 @@ class _PresentationScreenState extends State<PresentationScreen>
               content: Text(
                 'This file is ${sizeMB.toStringAsFixed(1)} MB. Loading may take '
                     'several minutes and require significant memory.\n\n'
-                    'For best performance with very large files, consider converting '
+                    'For best performance with very large files, consider converting'
                     'to PDF first.',
               ),
               actions: [
@@ -1721,31 +1721,41 @@ $stackString
         },
         itemBuilder: (context, index) {
           final isCurrent = _currentPageIndex == index;
-          return Stack(
+          return Container(
             key: ValueKey('slide_${_pages[index].pageNumber}_$index'),
-            children: [
-              SlideThumbnail(
-                page: _pages[index],
-                currentStroke: isCurrent ? _currentStroke : null,
-                isSelected: isCurrent,
-                onTap: () => _goToPage(index),
-                pdfDocument: _currentPdfDocument,
-              ),
-              Positioned(
-                right: 16,
-                top: 12,
-                child: ReorderableDragStartListener(
+            child: Stack(
+              children: [
+                ReorderableDelayedDragStartListener(
                   index: index,
-                  child: Icon(
-                    Icons.drag_handle,
-                    size: 18,
-                    color: isCurrent
-                        ? (isDark ? Colors.indigoAccent : Colors.indigo)
-                        : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                  child: SlideThumbnail(
+                    page: _pages[index],
+                    currentStroke: isCurrent ? _currentStroke : null,
+                    isSelected: isCurrent,
+                    onTap: () => _goToPage(index),
+                    pdfDocument: _currentPdfDocument,
                   ),
                 ),
-              ),
-            ],
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: ReorderableDragStartListener(
+                    index: index,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isCurrent ? Colors.indigo : Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(
+                        Icons.drag_handle,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),

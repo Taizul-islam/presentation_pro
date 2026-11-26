@@ -165,13 +165,15 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     });
   }
 
-  void _checkHandTouch(PointerEvent event) {
+  bool _checkHandTouch(PointerEvent event) {
     if (event.kind == PointerDeviceKind.touch || event.kind == PointerDeviceKind.stylus) {
       if (event.radiusMajor > 14.0 || event.radiusMinor > 12.0 || event.pressure > 0.60) {
         final double handSize = (event.radiusMajor * 2.8).clamp(110.0, 160.0);
         widget.onHandTouchDetected?.call(true, handSize);
+        return true;
       }
     }
+    return false;
   }
 
   @override
@@ -197,19 +199,24 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             onPointerDown: (PointerDownEvent event) {
               if (widget.selectedTool == DrawingTool.hand) return;
               widget.onInteraction?.call();
-              _checkHandTouch(event);
+              final isHand = _checkHandTouch(event);
               final pos = event.localPosition;
               _lastPointerPos = pos;
               _addLaserPoint(pos);
-              if (widget.selectedTool == DrawingTool.laserPointer) {
+
+              final effectiveTool = (isHand || widget.selectedTool == DrawingTool.eraser)
+                  ? DrawingTool.eraser
+                  : widget.selectedTool;
+
+              if (effectiveTool == DrawingTool.laserPointer) {
                 widget.onHoverUpdate(pos);
                 return;
-              } else if (widget.selectedTool == DrawingTool.selector) {
+              } else if (effectiveTool == DrawingTool.selector) {
                 _handleSelectionStart(pos);
-              } else if (widget.selectedTool == DrawingTool.shape &&
+              } else if (effectiveTool == DrawingTool.shape &&
                   _tryHandleExistingShapeInteraction(pos)) {
                 return;
-              } else if (widget.selectedTool == DrawingTool.text) {
+              } else if (effectiveTool == DrawingTool.text) {
                 // Pass normalized position to parent
                 widget.onTextCreated?.call(Offset(pos.dx / canvasSize.width, pos.dy / canvasSize.height));
               } else {
