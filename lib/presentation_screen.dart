@@ -274,7 +274,7 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _updateStroke(Offset position) {
     if (_currentStroke != null) {
       setState(() {
-        if (_selectedTool == DrawingTool.shape) {
+        if (_currentStroke!.tool == DrawingTool.shape) {
           if (_currentStroke!.points.length > 1) {
             _currentStroke!.points[1] = position;
           } else {

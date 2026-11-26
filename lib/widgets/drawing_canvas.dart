@@ -208,8 +208,9 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             onPointerDown: (PointerDownEvent event) {
               if (widget.selectedTool == DrawingTool.hand) return;
               widget.onInteraction?.call();
+              final wasEmpty = _activePointers.isEmpty;
               _activePointers.add(event.pointer);
-              if (event.kind == PointerDeviceKind.stylus) {
+              if (event.kind == PointerDeviceKind.stylus && wasEmpty) {
                 widget.onHandTouchDetected?.call(false, 0.0);
               }
               final isHand = _checkHandTouch(event);
@@ -262,7 +263,9 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               if (widget.selectedTool == DrawingTool.hand) return;
               _activePointers.remove(event.pointer);
               _lastPointerPos = null;
-              widget.onHandTouchDetected?.call(false, 0.0);
+              if (_activePointers.isEmpty) {
+                widget.onHandTouchDetected?.call(false, 0.0);
+              }
               if (widget.selectedTool == DrawingTool.selector ||
                   (widget.selectedTool == DrawingTool.shape && !_isDrawing)) {
                 _handleSelectionEnd();
@@ -276,7 +279,9 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               if (widget.selectedTool == DrawingTool.hand) return;
               _activePointers.remove(event.pointer);
               _lastPointerPos = null;
-              widget.onHandTouchDetected?.call(false, 0.0);
+              if (_activePointers.isEmpty) {
+                widget.onHandTouchDetected?.call(false, 0.0);
+              }
               if (_isDrawing) {
                 _isDrawing = false;
                 widget.onStrokeEnd();
