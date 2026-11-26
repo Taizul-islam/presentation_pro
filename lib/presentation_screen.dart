@@ -1627,8 +1627,10 @@ $stackString
           );
         }
 
+        final workspaceBgColor = isDark ? const Color(0xFF181825) : const Color(0xFFF5F5F7);
+
         return Container(
-          color: slideBgColor,
+          color: workspaceBgColor,
           child: Padding(
             padding: const EdgeInsets.only(bottom: 50),
             child: InteractiveViewer(
@@ -1680,14 +1682,15 @@ $stackString
 
   Widget _buildPlaceholder(PresentationPage page,
       {bool isHidden = false, Color bgColor = Colors.white}) {
-    if (isHidden) return const SizedBox.shrink();
     final isLight = bgColor.computeLuminance() > 0.5;
 
     return Container(
       color: bgColor,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      child: isHidden
+          ? null
+          : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               page.icon,
