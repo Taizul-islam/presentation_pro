@@ -190,6 +190,32 @@ class _PresentationScreenState extends State<PresentationScreen>
     });
   }
 
+  void _showHandDusterSnackbar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.back_hand, color: Colors.amber, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.black87,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.only(bottom: 70, left: 16, right: 16),
+      ),
+    );
+  }
+
   void _handleHandTouchDetected(bool isHand, double size) {
     if (!_isAutoHandDusterEnabled) return;
 
@@ -201,6 +227,7 @@ class _PresentationScreenState extends State<PresentationScreen>
           _selectedDusterType = DusterType.handDuster;
           _eraserWidth = size.clamp(110.0, 160.0);
         });
+        _showHandDusterSnackbar('🖐️ Hand Duster Detected (Mid-stroke) - Width: ${size.toStringAsFixed(0)}px');
       }
       return;
     }
@@ -215,6 +242,7 @@ class _PresentationScreenState extends State<PresentationScreen>
           _selectedDusterType = DusterType.handDuster;
           _eraserWidth = handWidth;
         });
+        _showHandDusterSnackbar('🖐️ Hand Duster Active - Eraser Width: ${handWidth.toStringAsFixed(0)}px');
       } else {
         setState(() {
           _eraserWidth = handWidth;
@@ -222,6 +250,7 @@ class _PresentationScreenState extends State<PresentationScreen>
       }
     } else {
       if (_isHandDusterActive) {
+        final restoredTool = _previousToolBeforeHandDuster ?? _selectedTool;
         setState(() {
           _isHandDusterActive = false;
           if (_previousToolBeforeHandDuster != null) {
@@ -229,6 +258,7 @@ class _PresentationScreenState extends State<PresentationScreen>
             _previousToolBeforeHandDuster = null;
           }
         });
+        _showHandDusterSnackbar('✏️ Hand Released -> Restored Tool: ${restoredTool.name}');
       }
     }
   }
