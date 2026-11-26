@@ -16,7 +16,7 @@ class DrawingCanvas extends StatefulWidget {
   final Color laserColor;
   final double spotlightRadius;
   final Offset? hoverPosition;
-  final Function(Offset) onStrokeStart;
+  final Function(Offset, {DrawingTool? toolForThisStroke}) onStrokeStart;
   final Function(Offset) onStrokeUpdate;
   final Function() onStrokeEnd;
   final Function(Offset?) onHoverUpdate;
@@ -171,9 +171,13 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       widget.onHandTouchDetected?.call(true, 130.0);
       return true;
     }
-    if (event.kind == PointerDeviceKind.touch || event.kind == PointerDeviceKind.stylus) {
-      if (event.radiusMajor > 6.0 || event.radiusMinor > 5.0 || event.pressure > 0.35) {
-        final double handSize = (event.radiusMajor > 0 ? event.radiusMajor * 2.8 : 120.0).clamp(110.0, 160.0);
+    if (event.kind == PointerDeviceKind.stylus) {
+      return false;
+    }
+    if (event.kind == PointerDeviceKind.touch) {
+      final double radius = math.max(event.radiusMajor, event.radiusMinor);
+      if (radius > 6.0) {
+        final double handSize = (radius > 0 ? radius * 2.8 : 120.0).clamp(110.0, 160.0);
         widget.onHandTouchDetected?.call(true, handSize);
         return true;
       }
@@ -232,8 +236,11 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
                 _clearSelection();
                 _isDrawing = true;
                 widget.onHoverUpdate(pos);
-                // Pass normalized position to parent
-                widget.onStrokeStart(Offset(pos.dx / canvasSize.width, pos.dy / canvasSize.height));
+                // Pass normalized position and effective tool to parent
+                widget.onStrokeStart(
+                  Offset(pos.dx / canvasSize.width, pos.dy / canvasSize.height),
+                  toolForThisStroke: effectiveTool,
+                );
               }
             },
             onPointerMove: (PointerMoveEvent event) {

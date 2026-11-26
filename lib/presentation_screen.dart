@@ -248,9 +248,10 @@ class _PresentationScreenState extends State<PresentationScreen>
     }
   }
 
-  void _startStroke(Offset position) {
+  void _startStroke(Offset position, {DrawingTool? toolForThisStroke}) {
     _resetSubToolbarAutoCollapseTimer();
-    final double activeEraserWidth = _selectedTool == DrawingTool.eraser
+    final DrawingTool strokeTool = toolForThisStroke ?? _selectedTool;
+    final double activeEraserWidth = strokeTool == DrawingTool.eraser
         ? (_selectedDusterType == DusterType.handDuster || _isHandDusterActive
             ? 120.0
             : _eraserWidth)
@@ -261,11 +262,11 @@ class _PresentationScreenState extends State<PresentationScreen>
         points: [position],
         color: _selectedColor,
         width: activeEraserWidth,
-        tool: _selectedTool,
+        tool: strokeTool,
         dusterType: _selectedDusterType,
         strokeAngle: _currentDusterAngle,
-        shapeType: _selectedTool == DrawingTool.shape ? _selectedShape : null,
-        fillColor: _selectedTool == DrawingTool.shape ? _shapeFillColor : null,
+        shapeType: strokeTool == DrawingTool.shape ? _selectedShape : null,
+        fillColor: strokeTool == DrawingTool.shape ? _shapeFillColor : null,
       );
     });
   }
