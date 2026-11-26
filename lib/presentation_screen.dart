@@ -193,6 +193,18 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _handleHandTouchDetected(bool isHand, double size) {
     if (!_isAutoHandDusterEnabled) return;
 
+    if (_currentStroke != null) {
+      if (isHand && !_isHandDusterActive) {
+        _previousToolBeforeHandDuster = _selectedTool;
+        setState(() {
+          _isHandDusterActive = true;
+          _selectedDusterType = DusterType.handDuster;
+          _eraserWidth = size.clamp(110.0, 160.0);
+        });
+      }
+      return;
+    }
+
     if (isHand) {
       final double handWidth = size.clamp(110.0, 160.0);
       if (!_isHandDusterActive) {
@@ -288,8 +300,9 @@ class _PresentationScreenState extends State<PresentationScreen>
         return;
       }
 
-      final wasShape = _selectedTool == DrawingTool.shape;
-      final wasEraser = _selectedTool == DrawingTool.eraser;
+      final wasShape = _currentStroke!.tool == DrawingTool.shape;
+      final wasEraser = _currentStroke!.tool == DrawingTool.eraser;
+      final wasHandwriting = _currentStroke!.tool == DrawingTool.handwriting;
       final strokeToPrune = _currentStroke;
 
       setState(() {
@@ -312,7 +325,7 @@ class _PresentationScreenState extends State<PresentationScreen>
           _activeTextIndex = null;
         }
 
-        if (_selectedTool == DrawingTool.handwriting) {
+        if (wasHandwriting) {
           _updateHandwritingRecognition();
         }
       });

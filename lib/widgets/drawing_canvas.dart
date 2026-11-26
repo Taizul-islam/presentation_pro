@@ -205,6 +205,9 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               if (widget.selectedTool == DrawingTool.hand) return;
               widget.onInteraction?.call();
               _activePointers.add(event.pointer);
+              if (event.kind == PointerDeviceKind.stylus) {
+                widget.onHandTouchDetected?.call(false, 0.0);
+              }
               final isHand = _checkHandTouch(event);
               final pos = event.localPosition;
               _lastPointerPos = pos;
