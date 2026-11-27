@@ -220,14 +220,22 @@ class _PresentationScreenState extends State<PresentationScreen>
     if (!_isAutoHandDusterEnabled) return;
 
     if (_currentStroke != null) {
-      if (isHand && !_isHandDusterActive) {
-        _previousToolBeforeHandDuster = _selectedTool;
+      if (isHand) {
+        if (!_isHandDusterActive) {
+          _previousToolBeforeHandDuster = _selectedTool;
+        }
         setState(() {
           _isHandDusterActive = true;
+          _selectedTool = DrawingTool.eraser;
           _selectedDusterType = DusterType.handDuster;
           _eraserWidth = size.clamp(110.0, 160.0);
+          _currentStroke = _currentStroke!.copyWith(
+            tool: DrawingTool.eraser,
+            dusterType: DusterType.handDuster,
+            width: size.clamp(110.0, 160.0),
+          );
         });
-        _showHandDusterSnackbar('🖐️ Hand Duster Detected (Mid-stroke) - Width: ${size.toStringAsFixed(0)}px');
+        _showHandDusterSnackbar('🖐️ Hand Duster Active (Converted Stroke) - Width: ${size.toStringAsFixed(0)}px');
       }
       return;
     }
