@@ -220,6 +220,19 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _handleHandTouchDetected(bool isHand, double size) {
     if (!_isAutoHandDusterEnabled) return;
 
+    if (_currentStroke != null) {
+      if (isHand && !_isHandDusterActive) {
+        _previousToolBeforeHandDuster = _selectedTool;
+        setState(() {
+          _isHandDusterActive = true;
+          _selectedDusterType = DusterType.handDuster;
+          _eraserWidth = size.clamp(110.0, 160.0);
+        });
+        _showHandDusterSnackbar('🖐️ Hand Duster Detected - Eraser Width: ${size.toStringAsFixed(0)}px');
+      }
+      return;
+    }
+
     if (isHand) {
       final double handWidth = size.clamp(110.0, 160.0);
       if (!_isHandDusterActive) {
@@ -230,13 +243,6 @@ class _PresentationScreenState extends State<PresentationScreen>
         _selectedTool = DrawingTool.eraser;
         _selectedDusterType = DusterType.handDuster;
         _eraserWidth = handWidth;
-        if (_currentStroke != null) {
-          _currentStroke = _currentStroke!.copyWith(
-            tool: DrawingTool.eraser,
-            dusterType: DusterType.handDuster,
-            width: handWidth,
-          );
-        }
       });
       _showHandDusterSnackbar('🖐️ Hand Duster Active - Eraser Width: ${handWidth.toStringAsFixed(0)}px');
     } else {
@@ -271,9 +277,7 @@ class _PresentationScreenState extends State<PresentationScreen>
     _resetSubToolbarAutoCollapseTimer();
     final DrawingTool strokeTool = toolForThisStroke ?? _selectedTool;
     final double activeEraserWidth = strokeTool == DrawingTool.eraser
-        ? (_selectedDusterType == DusterType.handDuster || _isHandDusterActive
-            ? 120.0
-            : _eraserWidth)
+        ? _eraserWidth
         : _strokeWidth;
 
     setState(() {

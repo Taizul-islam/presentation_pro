@@ -71,6 +71,8 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   List<int> _selectedIndices = [];
   final Set<int> _previouslyMovedIndices = {};
   final Set<int> _activePointers = {};
+  bool _stylusIsDown = false;
+  final Set<int> _stylusPointers = {};
   Offset? _dragStart;
   Offset? _currentDragOffset;
   bool _isMoving = false;
@@ -167,17 +169,21 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   }
 
   bool _checkHandTouch(PointerEvent event) {
-    if (_activePointers.length >= 2) {
+    final bool isStylus = event.kind == PointerDeviceKind.stylus ||
+        event.kind == PointerDeviceKind.invertedStylus;
+    if (isStylus) {
+      return false;
+    }
+
+    if (_stylusIsDown) {
       widget.onHandTouchDetected?.call(true, 130.0);
       return true;
     }
-    if (event.kind == PointerDeviceKind.stylus) {
-      return false;
-    }
+
     if (event.kind == PointerDeviceKind.touch) {
       final double radius = math.max(event.radiusMajor, event.radiusMinor);
-      if (radius > 6.0) {
-        final double handSize = (radius > 0 ? radius * 2.8 : 120.0).clamp(110.0, 160.0);
+      if (radius >= 18.0) {
+        final double handSize = (radius * 2.8).clamp(110.0, 160.0);
         widget.onHandTouchDetected?.call(true, handSize);
         return true;
       }
@@ -208,11 +214,18 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             onPointerDown: (PointerDownEvent event) {
               if (widget.selectedTool == DrawingTool.hand) return;
               widget.onInteraction?.call();
-              final wasEmpty = _activePointers.isEmpty;
               _activePointers.add(event.pointer);
-              if (event.kind == PointerDeviceKind.stylus && wasEmpty) {
-                widget.onHandTouchDetected?.call(false, 0.0);
+
+              final isStylus = event.kind == PointerDeviceKind.stylus ||
+                  event.kind == PointerDeviceKind.invertedStylus;
+              if (isStylus) {
+                _stylusPointers.add(event.pointer);
+                _stylusIsDown = true;
+                if (_stylusPointers.length == 1) {
+                  widget.onHandTouchDetected?.call(false, 0.0);
+                }
               }
+
               final isHand = _checkHandTouch(event);
               final pos = event.localPosition;
               _lastPointerPos = pos;
@@ -246,7 +259,11 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             },
             onPointerMove: (PointerMoveEvent event) {
               if (widget.selectedTool == DrawingTool.hand) return;
-              _checkHandTouch(event);
+              final isStylus = event.kind == PointerDeviceKind.stylus ||
+                  event.kind == PointerDeviceKind.invertedStylus;
+              if (!isStylus) {
+                _checkHandTouch(event);
+              }
               final pos = event.localPosition;
               _updateDusterAngle(pos);
               _addLaserPoint(pos);
@@ -262,6 +279,8 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             onPointerUp: (PointerUpEvent event) {
               if (widget.selectedTool == DrawingTool.hand) return;
               _activePointers.remove(event.pointer);
+              _stylusPointers.remove(event.pointer);
+              _stylusIsDown = _stylusPointers.isNotEmpty;
               _lastPointerPos = null;
               if (_activePointers.isEmpty) {
                 widget.onHandTouchDetected?.call(false, 0.0);
@@ -278,6 +297,8 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
             onPointerCancel: (PointerCancelEvent event) {
               if (widget.selectedTool == DrawingTool.hand) return;
               _activePointers.remove(event.pointer);
+              _stylusPointers.remove(event.pointer);
+              _stylusIsDown = _stylusPointers.isNotEmpty;
               _lastPointerPos = null;
               if (_activePointers.isEmpty) {
                 widget.onHandTouchDetected?.call(false, 0.0);
