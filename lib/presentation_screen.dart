@@ -228,7 +228,6 @@ class _PresentationScreenState extends State<PresentationScreen>
           _selectedDusterType = DusterType.handDuster;
           _eraserWidth = size.clamp(110.0, 160.0);
         });
-        _showHandDusterSnackbar('🖐️ Hand Duster Detected - Eraser Width: ${size.toStringAsFixed(0)}px');
       }
       return;
     }

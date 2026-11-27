@@ -65,7 +65,7 @@ class _LaserPoint {
   _LaserPoint(this.position, this.timestamp);
 }
 
-class _DrawingCanvasState extends State<DrawingCanvas> {
+class _DrawingCanvasState extends State<DrawingCanvas> with WidgetsBindingObserver {
   bool _isDrawing = false;
   Rect? _selectionRect;
   List<int> _selectedIndices = [];
@@ -77,6 +77,31 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   Offset? _currentDragOffset;
   bool _isMoving = false;
   Size? _lastCanvasSize;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _activePointers.clear();
+      _stylusPointers.clear();
+      _stylusIsDown = false;
+      _isDrawing = false;
+      widget.onHandTouchDetected?.call(false, 0.0);
+    }
+  }
 
   // Laser pointer state
   final List<_LaserPoint> _laserPoints = [];
