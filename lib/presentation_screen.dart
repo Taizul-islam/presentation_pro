@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -219,52 +220,32 @@ class _PresentationScreenState extends State<PresentationScreen>
   void _handleHandTouchDetected(bool isHand, double size) {
     if (!_isAutoHandDusterEnabled) return;
 
-    if (_currentStroke != null) {
-      if (isHand) {
-        if (!_isHandDusterActive) {
-          _previousToolBeforeHandDuster = _selectedTool;
-        }
-        setState(() {
-          _isHandDusterActive = true;
-          _selectedTool = DrawingTool.eraser;
-          _selectedDusterType = DusterType.handDuster;
-          _eraserWidth = size.clamp(110.0, 160.0);
-          _currentStroke = _currentStroke!.copyWith(
-            tool: DrawingTool.eraser,
-            dusterType: DusterType.handDuster,
-            width: size.clamp(110.0, 160.0),
-          );
-        });
-        _showHandDusterSnackbar('🖐️ Hand Duster Active (Converted Stroke) - Width: ${size.toStringAsFixed(0)}px');
-      }
-      return;
-    }
-
     if (isHand) {
       final double handWidth = size.clamp(110.0, 160.0);
       if (!_isHandDusterActive) {
         _previousToolBeforeHandDuster = _selectedTool;
-        setState(() {
-          _isHandDusterActive = true;
-          _selectedTool = DrawingTool.eraser;
-          _selectedDusterType = DusterType.handDuster;
-          _eraserWidth = handWidth;
-        });
-        _showHandDusterSnackbar('🖐️ Hand Duster Active - Eraser Width: ${handWidth.toStringAsFixed(0)}px');
-      } else {
-        setState(() {
-          _eraserWidth = handWidth;
-        });
       }
+      setState(() {
+        _isHandDusterActive = true;
+        _selectedTool = DrawingTool.eraser;
+        _selectedDusterType = DusterType.handDuster;
+        _eraserWidth = handWidth;
+        if (_currentStroke != null) {
+          _currentStroke = _currentStroke!.copyWith(
+            tool: DrawingTool.eraser,
+            dusterType: DusterType.handDuster,
+            width: handWidth,
+          );
+        }
+      });
+      _showHandDusterSnackbar('🖐️ Hand Duster Active - Eraser Width: ${handWidth.toStringAsFixed(0)}px');
     } else {
-      if (_isHandDusterActive) {
-        final restoredTool = _previousToolBeforeHandDuster ?? _selectedTool;
+      if (_isHandDusterActive || _previousToolBeforeHandDuster != null) {
+        final restoredTool = _previousToolBeforeHandDuster ?? DrawingTool.pen;
         setState(() {
           _isHandDusterActive = false;
-          if (_previousToolBeforeHandDuster != null) {
-            _selectedTool = _previousToolBeforeHandDuster!;
-            _previousToolBeforeHandDuster = null;
-          }
+          _selectedTool = restoredTool;
+          _previousToolBeforeHandDuster = null;
         });
         _showHandDusterSnackbar('✏️ Hand Released -> Restored Tool: ${restoredTool.name}');
       }
@@ -367,6 +348,14 @@ class _PresentationScreenState extends State<PresentationScreen>
         if (wasHandwriting) {
           _updateHandwritingRecognition();
         }
+
+        if (_isHandDusterActive || _previousToolBeforeHandDuster != null) {
+          final restoredTool = _previousToolBeforeHandDuster ?? DrawingTool.pen;
+          _isHandDusterActive = false;
+          _selectedTool = restoredTool;
+          _previousToolBeforeHandDuster = null;
+          _showHandDusterSnackbar('✏️ Hand Released -> Restored Tool: ${restoredTool.name}');
+        }
       });
     } else {
       setState(() {
@@ -410,19 +399,52 @@ class _PresentationScreenState extends State<PresentationScreen>
     _pages = List.from(_pages);
   }
 
+  double _distanceToSegment(Offset p, Offset a, Offset b) {
+    final l2 = (b - a).distanceSquared;
+    if (l2 == 0) return (p - a).distance;
+    var t = ((p.dx - a.dx) * (b.dx - a.dx) + (p.dy - a.dy) * (b.dy - a.dy)) / l2;
+    t = t.clamp(0.0, 1.0);
+    final projection = Offset(a.dx + t * (b.dx - a.dx), a.dy + t * (b.dy - a.dy));
+    return (p - projection).distance;
+  }
+
+  double _minDistanceBetweenSegments(Offset a, Offset b, Offset c, Offset d) {
+    return math.min(
+      math.min(_distanceToSegment(a, c, d), _distanceToSegment(b, c, d)),
+      math.min(_distanceToSegment(c, a, b), _distanceToSegment(d, a, b)),
+    );
+  }
+
   bool _strokeIntersectsEraser(DrawingStroke stroke, List<Offset> eraserPoints, double radius) {
     if (stroke.points.isEmpty || eraserPoints.isEmpty) return false;
 
-    // Fast bounding box check
     final strokeBox = stroke.boundingBox.inflate(radius);
     final bool bboxHits = eraserPoints.any((ep) => strokeBox.contains(ep));
     if (!bboxHits) return false;
 
-    // Detailed point proximity check
-    for (final sp in stroke.points) {
-      for (final ep in eraserPoints) {
-        if ((sp - ep).distance <= radius) {
+    if (stroke.points.length == 1) {
+      final sp = stroke.points.first;
+      for (int j = 0; j < eraserPoints.length - 1; j++) {
+        if (_distanceToSegment(sp, eraserPoints[j], eraserPoints[j + 1]) <= radius) {
           return true;
+        }
+      }
+      return (sp - eraserPoints.first).distance <= radius;
+    }
+
+    for (int i = 0; i < stroke.points.length - 1; i++) {
+      final s1 = stroke.points[i];
+      final s2 = stroke.points[i + 1];
+
+      if (eraserPoints.length == 1) {
+        if (_distanceToSegment(eraserPoints.first, s1, s2) <= radius) return true;
+      } else {
+        for (int j = 0; j < eraserPoints.length - 1; j++) {
+          final e1 = eraserPoints[j];
+          final e2 = eraserPoints[j + 1];
+          if (_minDistanceBetweenSegments(s1, s2, e1, e2) <= radius) {
+            return true;
+          }
         }
       }
     }
@@ -430,22 +452,38 @@ class _PresentationScreenState extends State<PresentationScreen>
   }
 
   List<DrawingStroke> _splitStrokeByEraser(DrawingStroke stroke, List<Offset> eraserPoints, double radius) {
+    if (stroke.points.isEmpty) return [];
+    if (eraserPoints.isEmpty) return [stroke];
+
     final List<DrawingStroke> result = [];
     List<Offset> currentSegment = [];
 
-    for (final sp in stroke.points) {
-      bool isErased = eraserPoints.any((ep) => (sp - ep).distance <= radius);
+    for (int i = 0; i < stroke.points.length; i++) {
+      final sp = stroke.points[i];
+
+      bool isErased = false;
+      if (eraserPoints.length == 1) {
+        isErased = (sp - eraserPoints.first).distance <= radius;
+      } else {
+        for (int j = 0; j < eraserPoints.length - 1; j++) {
+          if (_distanceToSegment(sp, eraserPoints[j], eraserPoints[j + 1]) <= radius) {
+            isErased = true;
+            break;
+          }
+        }
+      }
+
       if (!isErased) {
         currentSegment.add(sp);
       } else {
-        if (currentSegment.length >= 2) {
+        if (currentSegment.length > 1) {
           result.add(stroke.copyWith(points: List.from(currentSegment)));
         }
         currentSegment.clear();
       }
     }
 
-    if (currentSegment.length >= 2) {
+    if (currentSegment.length > 1) {
       result.add(stroke.copyWith(points: List.from(currentSegment)));
     }
 
