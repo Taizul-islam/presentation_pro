@@ -95,10 +95,13 @@ class _DrawingCanvasState extends State<DrawingCanvas> with WidgetsBindingObserv
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
+      if (_isDrawing) {
+        _isDrawing = false;
+        widget.onStrokeEnd();
+      }
       _activePointers.clear();
       _stylusPointers.clear();
       _stylusIsDown = false;
-      _isDrawing = false;
       widget.onHandTouchDetected?.call(false, 0.0);
     }
   }

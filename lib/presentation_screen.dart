@@ -351,14 +351,6 @@ class _PresentationScreenState extends State<PresentationScreen>
         if (wasHandwriting) {
           _updateHandwritingRecognition();
         }
-
-        if (_isHandDusterActive || _previousToolBeforeHandDuster != null) {
-          final restoredTool = _previousToolBeforeHandDuster ?? DrawingTool.pen;
-          _isHandDusterActive = false;
-          _selectedTool = restoredTool;
-          _previousToolBeforeHandDuster = null;
-          _showHandDusterSnackbar('✏️ Hand Released -> Restored Tool: ${restoredTool.name}');
-        }
       });
     } else {
       setState(() {
